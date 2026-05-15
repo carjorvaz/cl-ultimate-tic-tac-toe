@@ -49,6 +49,11 @@
 (defun csrf-body (token body)
   (format nil "csrf-token=~A~@[&~A~]" token body))
 
+(defun wrong-csrf-token (token)
+  (concatenate 'string
+               (if (char= #\0 (char token 0)) "1" "0")
+               (subseq token 1)))
+
 (defun string-starts-with-p (prefix string)
   (and (<= (length prefix) (length string))
        (string= prefix string :end2 (length prefix))))
@@ -460,6 +465,12 @@
                                        :body "board=0&cell=0"
                                        :headers '(("HX-Request" . "true"))))
            (after-missing-move (http-request port "GET" "/" :cookie cookie))
+           (wrong-move (http-request port "POST" "/games/current/moves"
+                                     :cookie cookie
+                                     :body (csrf-body (wrong-csrf-token token)
+                                                      "board=0&cell=0")
+                                     :headers '(("HX-Request" . "true"))))
+           (after-wrong-move (http-request port "GET" "/" :cookie cookie))
            (valid-move (http-request port "POST" "/games/current/moves"
                                      :cookie cookie
                                      :body (csrf-body token "board=0&cell=0")
@@ -477,6 +488,9 @@
       (is (= 403 (response-status missing-move)))
       (is (search "The form token was not valid." (response-body missing-move)))
       (is (search "X to move" (response-body after-missing-move)))
+      (is (= 403 (response-status wrong-move)))
+      (is (search "The form token was not valid." (response-body wrong-move)))
+      (is (search "X to move" (response-body after-wrong-move)))
       (is (= 200 (response-status valid-move)))
       (is (= 403 (response-status missing-reset)))
       (is (= 403 (response-status missing-players)))
