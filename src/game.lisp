@@ -35,7 +35,22 @@
   "Score bonus for sending the opponent to an already completed board.")
 
 (defconstant +hard-search-depth+ 2
-  "Number of plies searched by the hard deterministic opponent.")
+  "Default number of plies searched by the hard deterministic opponent.")
+
+(defconstant +hard-deeper-search-depth+ 3
+  "Search depth used when branching is small enough to stay responsive.")
+
+(defconstant +hard-deeper-search-max-legal-moves+ 9
+  "Maximum current legal moves for the deeper hard search.")
+
+(defconstant +hard-late-game-move-count+ 36
+  "Move count where hard search may go deeper outside a single target board.")
+
+(defconstant +hard-late-game-max-legal-moves+ 18
+  "Maximum late-game legal moves for the deeper hard search.")
+
+(defconstant +hard-search-cache-size+ 1024
+  "Initial size for a per-move hard search transposition cache.")
 
 (defconstant +hard-terminal-win-score+ 1000000
   "Search score for a forced global win.")
@@ -206,6 +221,14 @@
   (do-legal-moves (board cell game (values nil nil))
     (return-from first-legal-move (values board cell))))
 
+(defun legal-move-count (game)
+  "Return the number of currently legal moves in GAME."
+  (let ((count 0))
+    (do-legal-moves (board cell game count)
+      board
+      cell
+      (incf count))))
+
 (defun local-board-outcome-with-mark (game board cell mark)
   (let ((previous-mark (aref (game-cells game) board cell)))
     (unwind-protect
@@ -369,13 +392,32 @@
       (t
        (values 0 t)))))
 
-(defun better-search-score-p (score best-score maximizing-p)
-  (or (null best-score)
-      (if maximizing-p
-          (> score best-score)
-          (< score best-score))))
+(defun hard-search-depth-for-position (game)
+  "Return the default hard search depth for GAME's current branching factor."
+  (let ((legal-moves (legal-move-count game)))
+    (if (or (<= legal-moves +hard-deeper-search-max-legal-moves+)
+            (and (>= (game-move-count game) +hard-late-game-move-count+)
+                 (<= legal-moves +hard-late-game-max-legal-moves+)))
+        +hard-deeper-search-depth+
+        +hard-search-depth+)))
 
-(defun hard-search-score (game player depth ply)
+(defun game-cell-values (game)
+  (loop for board below +board-count+
+        append (loop for cell below +board-count+
+                     collect (mark-at game board cell))))
+
+(defun hard-search-cache-key (game player depth ply)
+  (list player
+        depth
+        ply
+        (game-next-player game)
+        (game-active-board game)
+        (game-winner game)
+        (game-move-count game)
+        (board-outcome-values game)
+        (game-cell-values game)))
+
+(defun compute-hard-search-score (game player depth ply cache)
   (multiple-value-bind (terminal-score terminalp)
       (hard-terminal-score game player ply)
     (cond
@@ -389,11 +431,29 @@
            (let ((score (hard-search-score (game-after-move game board cell)
                                            player
                                            (1- depth)
-                                           (1+ ply))))
+                                           (1+ ply)
+                                           cache)))
              (when (better-search-score-p score best-score maximizing-p)
                (setf best-score score))))
          (or best-score
              (hard-static-evaluation game player)))))))
+
+(defun better-search-score-p (score best-score maximizing-p)
+  (or (null best-score)
+      (if maximizing-p
+          (> score best-score)
+          (< score best-score))))
+
+(defun hard-search-score (game player depth ply &optional cache)
+  (if cache
+      (let ((key (hard-search-cache-key game player depth ply)))
+        (multiple-value-bind (cached-score presentp)
+            (gethash key cache)
+          (if presentp
+              cached-score
+              (setf (gethash key cache)
+                    (compute-hard-search-score game player depth ply cache)))))
+      (compute-hard-search-score game player depth ply nil)))
 
 (defun better-strategic-score-p (score tactical-score
                                  best-score best-tactical-score)
@@ -403,10 +463,12 @@
            (or (null best-tactical-score)
                (> tactical-score best-tactical-score)))))
 
-(defun best-strategic-move (game &key (depth +hard-search-depth+))
+(defun best-strategic-move (game &key depth)
   "Return a deterministic search-backed BOARD and CELL for GAME, or NIL/NIL."
   (let ((player (game-next-player game))
-        (search-depth (max 0 depth))
+        (search-depth (max 0 (or depth
+                                 (hard-search-depth-for-position game))))
+        (cache (make-hash-table :test #'equal :size +hard-search-cache-size+))
         (best-board nil)
         (best-cell nil)
         (best-score nil)
@@ -415,7 +477,8 @@
       (let* ((score (hard-search-score (game-after-move game board cell)
                                        player
                                        (max 0 (1- search-depth))
-                                       1))
+                                       1
+                                       cache))
              (tactical-score (tactical-move-score game board cell)))
         (when (better-strategic-score-p score
                                         tactical-score
