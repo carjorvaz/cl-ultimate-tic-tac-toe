@@ -83,6 +83,7 @@
               export HOME="$TMPDIR"
               cd ${self}
               sbcl --script scripts/test.lisp
+              sbcl --script scripts/validate-architecture.lisp
               sbcl --script scripts/validate-docs.lisp
               touch "$out"
             '';

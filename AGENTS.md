@@ -8,7 +8,9 @@ a map, not a manual; the durable source of truth lives in `docs/`.
 1. Read `README.md` for run and test commands.
 2. Read `docs/README.md` to choose the right deeper document.
 3. Run `nix develop -c sbcl --script scripts/test.lisp` after code changes.
-4. Run `nix develop -c sbcl --script scripts/validate-docs.lisp` after changing
+4. Run `nix develop -c sbcl --script scripts/validate-architecture.lisp` after
+   changing source boundaries, dependency declarations, or system layout.
+5. Run `nix develop -c sbcl --script scripts/validate-docs.lisp` after changing
    repository guidance, docs, scripts, or Lisp file headers.
 
 ## Source Of Truth
@@ -35,5 +37,6 @@ a map, not a manual; the durable source of truth lives in `docs/`.
 ## Feedback Loop
 
 If an agent learns a reusable rule while fixing a bug, encode it in the repo:
-update a focused doc, add a test, or extend `scripts/validate-docs.lisp`.
+update a focused doc, add a test, or extend `scripts/validate-architecture.lisp`
+or `scripts/validate-docs.lisp`.
 Prefer mechanical checks for recurring rules and short docs for human judgment.

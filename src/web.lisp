@@ -124,6 +124,17 @@
                 :name "csrf-token"
                 :value token)))))
 
+(defmacro with-game-post-form ((path &rest attributes) &body body)
+  `(spinneret:with-html
+     (:form ,@attributes
+            :method "post"
+            :action ,path
+            :hx-post ,path
+            :hx-target "#game"
+            :hx-swap "outerHTML"
+       (emit-csrf-input)
+       ,@body)))
+
 (defun current-game ()
   (let ((session (request-session)))
     (or (gethash :game session)
@@ -301,25 +312,18 @@
           (mark
            (emit-mark mark))
           (legal-p
-           (spinneret:with-html
-             (:form :class "cell-form"
-                    :method "post"
-                    :action *current-game-moves-path*
-           :hx-post *current-game-moves-path*
-           :hx-target "#game"
-           :hx-swap "outerHTML"
-               (emit-csrf-input)
-               (:input :type "hidden"
-                       :name "board"
-                       :value board)
-               (:input :type "hidden"
-                       :name "cell"
-                       :value cell)
-               (:button :class "cell-button"
-                        :type "submit"
-                        :aria-label (cell-aria-label game board cell)
-                 (:span :class "cell-dot"
-                        :aria-hidden "true")))))
+           (with-game-post-form (*current-game-moves-path* :class "cell-form")
+             (:input :type "hidden"
+                     :name "board"
+                     :value board)
+             (:input :type "hidden"
+                     :name "cell"
+                     :value cell)
+             (:button :class "cell-button"
+                      :type "submit"
+                      :aria-label (cell-aria-label game board cell)
+               (:span :class "cell-dot"
+                      :aria-hidden "true"))))
           (t
            (spinneret:with-html
              (:span :class "cell-blank"
@@ -392,13 +396,7 @@
 
 (defun emit-player-settings ()
   (spinneret:with-html
-    (:form :class "players-form"
-           :method "post"
-           :action *games-path*
-           :hx-post *games-path*
-           :hx-target "#game"
-           :hx-swap "outerHTML"
-      (emit-csrf-input)
+    (with-game-post-form (*games-path* :class "players-form")
       (:div :class "player-fields"
         (emit-player-field :x)
         (emit-player-field :o))
@@ -474,13 +472,7 @@
             (result-label game))
           (:p :class "dialog-detail"
             (game-over-detail game))
-          (:form :class "dialog-actions"
-                 :method "post"
-                 :action *games-path*
-                 :hx-post *games-path*
-                 :hx-target "#game"
-                 :hx-swap "outerHTML"
-            (emit-csrf-input)
+          (with-game-post-form (*games-path* :class "dialog-actions")
             (:button :class "dialog-button"
                      :type "submit"
                      "New game")))))))
@@ -501,13 +493,7 @@
             (:p :class "eyebrow" "Ultimate Tic Tac Toe")
             (:h1 :aria-live "polite"
               (result-label game)))
-          (:form :class "reset-form"
-                 :method "post"
-                 :action *games-path*
-                 :hx-post *games-path*
-                 :hx-target "#game"
-                 :hx-swap "outerHTML"
-            (emit-csrf-input)
+          (with-game-post-form (*games-path* :class "reset-form")
             (:button :class "reset-button"
                      :type "submit"
                      :aria-label "Start a new game"
