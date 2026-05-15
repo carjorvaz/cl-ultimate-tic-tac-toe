@@ -1,0 +1,10 @@
+.direnv/
+.cache/
+result
+result-*
+*.fasl
+*.fasl-temp
+*.dfsl
+*.dx64fsl
+*.lx64fsl
+*.ufsl
