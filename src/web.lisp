@@ -539,9 +539,7 @@
                 :type "image/svg+xml")
          (:link :rel "stylesheet"
                 :href "/style.css")
-         (:script :src "https://cdn.jsdelivr.net/npm/htmx.org@2.0.10/dist/htmx.min.js"
-                  :integrity "sha384-H5SrcfygHmAuTDZphMHqBJLc3FhssKjG7w/CeCpFReSfwBWDTKpkzPP8c+cLsK+V"
-                  :crossorigin "anonymous"
+         (:script :src "/htmx.min.js"
                   :defer t))
        (:body
          (:main :class "app"
@@ -596,6 +594,10 @@
   (declare (ignore params))
   (asset-response "static/style.css" "text/css; charset=utf-8"))
 
+(defun htmx-handler (params)
+  (declare (ignore params))
+  (asset-response "static/htmx.min.js" "application/javascript; charset=utf-8"))
+
 (defun icon-handler (params)
   (declare (ignore params))
   (asset-response "static/icon.svg" "image/svg+xml"))
@@ -618,6 +620,7 @@
           (ningle:route app "/players" :method :post) #'games-handler
           (ningle:route app "/reset" :method :post) #'games-handler
           (ningle:route app "/style.css" :method :get) #'style-handler
+          (ningle:route app "/htmx.min.js" :method :get) #'htmx-handler
           (ningle:route app "/icon.svg" :method :get) #'icon-handler
           (ningle:route app "/x.svg" :method :get) #'x-mark-handler
           (ningle:route app "/o.svg" :method :get) #'o-mark-handler)

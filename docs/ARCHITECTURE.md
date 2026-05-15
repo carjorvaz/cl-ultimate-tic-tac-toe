@@ -52,6 +52,6 @@ Rules:
 
 - `scripts/test.lisp` runs rules, game, and web behavior tests.
 - `scripts/validate-docs.lisp` validates the agent map, required knowledge docs,
-  Lisp SPDX headers, source layering, direct dependency declarations, and ASDF
-  component order.
+  Lisp SPDX headers, ASDF source order, dependency declarations, and
+  package/source dependency boundaries.
 - `nix flake check` runs both the behavior tests and harness validation.

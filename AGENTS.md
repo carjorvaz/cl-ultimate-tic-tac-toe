@@ -9,8 +9,8 @@ a map, not a manual; the durable source of truth lives in `docs/`.
 2. Read `docs/README.md` to choose the right deeper document.
 3. Run `nix develop -c sbcl --script scripts/test.lisp` after code changes.
 4. Run `nix develop -c sbcl --script scripts/validate-docs.lisp` after changing
-   source boundaries, dependency declarations, repository guidance, scripts, or
-   Lisp file headers.
+   source boundaries, dependency declarations, system layout, repository
+   guidance, docs, scripts, or Lisp file headers.
 
 ## Source Of Truth
 

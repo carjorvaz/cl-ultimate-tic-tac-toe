@@ -43,10 +43,14 @@
           default = pkgs.mkShell {
             packages = [
               lisp
+              pkgs.nodejs
+              pkgs.playwright
               pkgs.rlwrap
             ];
 
             shellHook = ''
+              export PLAYWRIGHT_CORE_PATH="${pkgs.playwright}"
+              export PLAYWRIGHT_BROWSERS_PATH="${pkgs.playwright.browsers}"
               echo "Ultimate Tic Tac Toe: sbcl --script scripts/run.lisp"
             '';
           };
@@ -77,13 +81,20 @@
         {
           default = pkgs.runCommand "ultimate-tic-tac-toe-tests"
             {
-              nativeBuildInputs = [ lisp ];
+              nativeBuildInputs = [
+                lisp
+                pkgs.nodejs
+                pkgs.playwright
+              ];
             }
             ''
               export HOME="$TMPDIR"
+              export PLAYWRIGHT_CORE_PATH="${pkgs.playwright}"
+              export PLAYWRIGHT_BROWSERS_PATH="${pkgs.playwright.browsers}"
               cd ${self}
               sbcl --script scripts/test.lisp
               sbcl --script scripts/validate-docs.lisp
+              node scripts/browser-smoke.mjs
               touch "$out"
             '';
         });

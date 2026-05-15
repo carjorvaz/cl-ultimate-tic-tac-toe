@@ -25,11 +25,13 @@ the app locally without hidden service dependencies.
 ## Feedback Loops
 
 - Use `scripts/test.lisp` for behavior validation.
-- Use `scripts/validate-docs.lisp` for source-layer, dependency, and
-  repository-harness validation.
+- Use `scripts/validate-docs.lisp` for repository harness, source-layer, and
+  dependency validation.
+- Use `scripts/browser-smoke.mjs` for browser rendering and core UI flow
+  validation.
 - Use `nix flake check` before treating a change as ready.
-- For UI work, run the app and exercise a short game manually because the test
-  suite does not yet drive a browser.
+- For larger UI work, still run the app manually because the browser smoke is
+  intentionally narrow.
 
 ## Boundary Validation
 

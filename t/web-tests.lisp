@@ -281,6 +281,9 @@
       (is (response-csrf-token response))
       (is (search "Start a new game" (response-body response)))
       (is (search "aria-live=polite" (response-body response)))
+      (is (search "src=\"/htmx.min.js\"" (response-body response)))
+      (is (not (search "cdn.jsdelivr" (response-body response))))
+      (is (not (search "unpkg" (response-body response))))
       (is (not (search "hunchentoot-session" (response-body response)))))))
 
 (test static-assets-are-served
@@ -288,13 +291,19 @@
     (let ((responses
             (concurrent-http-requests
              (lambda () (http-request port "GET" "/style.css"))
+             (lambda () (http-request port "GET" "/htmx.min.js"))
              (lambda () (http-request port "GET" "/icon.svg"))
              (lambda () (http-request port "GET" "/x.svg"))
              (lambda () (http-request port "GET" "/o.svg")))))
-      (is (= 4 (count-if (lambda (response)
+      (is (= 5 (count-if (lambda (response)
                            (= 200 (response-status response)))
                          responses)))
       (is (find "text/css; charset=utf-8"
+                responses
+                :key (lambda (response)
+                       (header-value response "Content-Type"))
+                :test #'string=))
+      (is (find "application/javascript; charset=utf-8"
                 responses
                 :key (lambda (response)
                        (header-value response "Content-Type"))

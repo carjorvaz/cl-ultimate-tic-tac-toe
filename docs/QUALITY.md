@@ -4,19 +4,20 @@ Last reviewed: 2026-05-15
 
 ## Current Grade
 
-B+ for a compact app: domain behavior, HTTP flow, session handling, and
-concurrent duplicate moves are tested. The remaining gap is browser-driven
-visual and accessibility validation.
+B+ for a compact app: domain behavior, HTTP flow, session handling, concurrent
+duplicate moves, and a browser smoke flow are tested. The remaining gap is a
+deeper accessibility audit.
 
 ## Verification Matrix
 
 - Pure rules: covered by `t/rules-tests.lisp`.
 - Mutable game state: covered by `t/game-tests.lisp`.
 - Fragment rendering and HTTP flows: covered by `t/web-tests.lisp`.
-- Source boundaries and dependency declarations: covered by
-  `scripts/validate-docs.lisp`.
-- Repository harness docs: covered by `scripts/validate-docs.lisp`.
-- Manual browser behavior: expected for UI changes, not automated yet.
+- Browser rendering, responsive overflow, visible controls, and core form flow:
+  covered by `scripts/browser-smoke.mjs`.
+- Source boundaries, dependency declarations, and repository harness docs:
+  covered by `scripts/validate-docs.lisp`.
+- Manual browser behavior: expected for larger UI changes beyond the smoke flow.
 
 ## Quality Invariants
 
@@ -30,7 +31,8 @@ visual and accessibility validation.
 
 ## Known Gaps
 
-- No browser automation captures screenshots or checks responsive layout.
 - No accessibility audit runs in CI.
+- Browser automation is a smoke test; it does not yet cover keyboard-only flow
+  or screenshot baselines.
 - The structural validator is string-based; it catches the intended boundary
   drift but does not parse every Common Lisp form.

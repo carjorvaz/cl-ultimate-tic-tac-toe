@@ -7,10 +7,11 @@ focused patches.
 
 ## Known Debt
 
-- Add browser-driven UI validation for layout, keyboard flow, and screenshots.
+- Expand browser smoke coverage to keyboard flow and screenshot baselines.
 - Add an accessibility check for labels, focus order, and modal behavior.
-- Replace the string-based architecture validator with a form-aware dependency
-  check if the source layout grows beyond a few Lisp files.
+- Replace the string-based validation rules in `scripts/validate-docs.lisp` with
+  form-aware dependency checks if the source layout grows beyond a few Lisp
+  files.
 
 ## Gardening Rule
 

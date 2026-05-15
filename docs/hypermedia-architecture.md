@@ -17,7 +17,7 @@ fragment when JavaScript is available.
 - `ningle` routes requests to application handlers.
 - `Spinneret` renders full-page and fragment HTML.
 - `Hunchentoot` is the default Clack backend.
-- `htmx` submits forms and swaps the returned game fragment.
+- Vendored `htmx` submits forms and swaps the returned game fragment.
 
 ## Contract
 
@@ -35,3 +35,6 @@ plain HTML while giving htmx a smaller response shape.
 The rules and mutable game state stay in `ultimate-tic-tac-toe.game`; the web
 layer translates HTTP forms into state transitions and returns HTML
 representations.
+
+The browser dependency is local: `GET /htmx.min.js` serves the vendored HTMX
+asset from `static/`.

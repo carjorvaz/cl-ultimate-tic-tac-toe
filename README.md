@@ -1,7 +1,8 @@
 # Ultimate Tic Tac Toe
 
 Server-rendered Ultimate Tic Tac Toe in Common Lisp, using Clack, Lack,
-Ningle, Spinneret, a Hunchentoot backend, and HTMX for small partial updates.
+Ningle, Spinneret, a Hunchentoot backend, and vendored HTMX for small partial
+updates.
 
 ## Screenshots
 
@@ -31,6 +32,12 @@ the port.
 nix develop -c sbcl --script scripts/test.lisp
 ```
 
+Run the browser smoke check with:
+
+```sh
+nix develop -c node scripts/browser-smoke.mjs
+```
+
 or:
 
 ```sh
@@ -58,6 +65,9 @@ Coalton is used for a small typed rules slice in `src/rules.lisp`: local-board
 outcomes, global outcomes, and winning-line indexes. The mutable game state,
 Lack session handling, Spinneret rendering, and request handling stay in
 idiomatic Common Lisp.
+
+HTMX is served from `static/htmx.min.js` so normal local and deployed runs do
+not depend on a CDN.
 
 ## Codex Disclosure
 
