@@ -7,11 +7,12 @@ focused patches.
 
 ## Known Debt
 
-- Expand browser smoke coverage to keyboard flow and screenshot baselines.
-- Add an accessibility check for labels, focus order, and modal behavior.
-- Replace the string-based validation rules in `scripts/validate-docs.lisp` with
-  form-aware dependency checks if the source layout grows beyond a few Lisp
-  files.
+- Add a full accessibility audit, such as an axe-style check and a manual
+  screen-reader pass.
+- Add pixel-diff visual regression checks for the refreshed screenshot flow.
+- Replace the string-based validation rules in
+  `scripts/validate-architecture.lisp` with form-aware dependency checks if the
+  source layout grows beyond a few Lisp files.
 
 ## Gardening Rule
 

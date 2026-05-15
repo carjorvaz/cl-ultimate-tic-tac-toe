@@ -7,12 +7,14 @@ the app locally without hidden service dependencies.
 
 ## Runtime
 
-- Start the app with `nix develop -c sbcl --script scripts/run.lisp`.
+- Start the app with `direnv exec . sbcl --script scripts/run.lisp`.
 - The default URL is `http://127.0.0.1:4242/`.
 - Set `PORT` to choose a different listener port.
-- `start` uses the Hunchentoot Clack backend by default. The app itself is still
-  built as a Clack application; the default lifecycle keeps the raw Hunchentoot
-  acceptor so tests and local runs can stop it cleanly.
+- `start` uses the Woo Clack backend by default. The app itself is still built
+  as a Clack application.
+- The HTTP test harness uses the Hunchentoot backend because its direct acceptor
+  lifecycle makes startup failures synchronous and shutdown clean. Private
+  adapter lookups stay quarantined behind `clack-hunchentoot-symbol`.
 
 ## State And Concurrency
 
@@ -25,13 +27,15 @@ the app locally without hidden service dependencies.
 ## Feedback Loops
 
 - Use `scripts/test.lisp` for behavior validation.
-- Use `scripts/validate-docs.lisp` for repository harness, source-layer, and
-  dependency validation.
-- Use `scripts/browser-smoke.mjs` for browser rendering and core UI flow
+- Use `scripts/validate-architecture.lisp` for source-layer and dependency
   validation.
+- Use `scripts/validate-docs.lisp` for repository-harness validation.
+- Use `scripts/browser-smoke.mjs` for browser-driven desktop/mobile rendering,
+  HTMX swap, computer-opponent play, CSRF-form, keyboard flow, modal focus, and
+  overflow validation.
 - Use `nix flake check` before treating a change as ready.
-- For larger UI work, still run the app manually because the browser smoke is
-  intentionally narrow.
+- For larger UI work, still run the app manually when visual judgment matters;
+  the smoke flow catches regressions but does not replace taste.
 
 ## Boundary Validation
 

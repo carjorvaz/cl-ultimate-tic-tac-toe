@@ -185,7 +185,9 @@
                   for port = (+ 44000 (random 1000))
                   do (handler-case
                          (progn
-                           (ultimate-tic-tac-toe.web:start :port port :silent t)
+                           (ultimate-tic-tac-toe.web:start :port port
+                                                           :server :hunchentoot
+                                                           :silent t)
                            (wait-for-test-server port)
                            (return port))
                        (usocket:address-in-use-error () nil))
@@ -287,6 +289,13 @@
       (is (search "Start a new game" (response-body response)))
       (is (search "aria-live=polite" (response-body response)))
       (is (search "src=\"/htmx.min.js\"" (response-body response)))
+      (is (search "src=\"/app.js\"" (response-body response)))
+      (is (search "site-footer" (response-body response)))
+      (is (search "id=site-footer" (response-body response)))
+      (is (search "Source code" (response-body response)))
+      (is (search (ultimate-tic-tac-toe.web::source-code-url)
+                  (response-body response)))
+      (is (search "AGPL-3.0-or-later" (response-body response)))
       (is (not (search "cdn.jsdelivr" (response-body response))))
       (is (not (search "unpkg" (response-body response))))
       (is (not (search "hunchentoot-session" (response-body response)))))))
@@ -297,10 +306,11 @@
             (concurrent-http-requests
              (lambda () (http-request port "GET" "/style.css"))
              (lambda () (http-request port "GET" "/htmx.min.js"))
+             (lambda () (http-request port "GET" "/app.js"))
              (lambda () (http-request port "GET" "/icon.svg"))
              (lambda () (http-request port "GET" "/x.svg"))
              (lambda () (http-request port "GET" "/o.svg")))))
-      (is (= 5 (count-if (lambda (response)
+      (is (= 6 (count-if (lambda (response)
                            (= 200 (response-status response)))
                          responses)))
       (is (find "text/css; charset=utf-8"
@@ -308,11 +318,10 @@
                 :key (lambda (response)
                        (header-value response "Content-Type"))
                 :test #'string=))
-      (is (find "application/javascript; charset=utf-8"
-                responses
-                :key (lambda (response)
-                       (header-value response "Content-Type"))
-                :test #'string=))
+      (is (= 2 (count-if (lambda (response)
+                           (string= "application/javascript; charset=utf-8"
+                                    (header-value response "Content-Type")))
+                         responses)))
       (is (= 3 (count-if (lambda (response)
                            (string= "image/svg+xml"
                                     (header-value response "Content-Type")))
@@ -335,6 +344,9 @@
       (is (search "O to move" (response-body move)))
       (is (search "player-strip" (response-body move)))
       (is (not (search "players-form" (response-body move))))
+      (is (search "site-footer" (response-body move)))
+      (is (search "hx-swap-oob" (response-body move)))
+      (is (search "Source code" (response-body move)))
       (is (not (search "<!doctype html>" (response-body move))))
       (is (not (search "hunchentoot-session" (response-body move)))))))
 
@@ -378,7 +390,7 @@
       (is (search "name=opponent" (response-body settings)))
       (is (= 200 (response-status move)))
       (is (search "Ada to move" (response-body move)))
-      (is (search "Top board" (response-body move)))
+      (is (search "Center board" (response-body move)))
       (is (= 1 (count-substrings "mark mark-x" (response-body move))))
       (is (= 1 (count-substrings "mark mark-o" (response-body move))))
       (is (search "chip-kind" (response-body move))))))
@@ -394,7 +406,7 @@
                                    :headers '(("HX-Request" . "true")))))
       (is (= 200 (response-status settings)))
       (is (search "Ada to move" (response-body settings)))
-      (is (search "Top left board" (response-body settings)))
+      (is (search "Center board" (response-body settings)))
       (is (search "player-strip" (response-body settings)))
       (is (not (search "players-form" (response-body settings))))
       (is (= 0 (count-substrings "mark mark-x" (response-body settings))))

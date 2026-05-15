@@ -25,5 +25,5 @@ here so the agent can progressively disclose only the context it needs.
 - Update the narrowest relevant document when a lasting decision changes.
 - Promote repeated review comments into a test or validation script.
 - Keep `AGENTS.md` short enough to work as a table of contents.
-- Run `nix develop -c sbcl --script scripts/validate-docs.lisp` after editing
+- Run `direnv exec . sbcl --script scripts/validate-docs.lisp` after editing
   this knowledge base.

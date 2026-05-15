@@ -18,7 +18,8 @@ system quickly.
   parsing.
 - `static/` contains CSS and SVG assets served directly by the web layer.
 - `t/` contains FiveAM tests for rules, game behavior, and HTTP rendering.
-- `scripts/` contains runnable entry points for local app and test workflows.
+- `scripts/` contains runnable entry points for local app, test, validation, and
+  browser-smoke workflows.
 
 ## Boundaries
 
@@ -51,7 +52,12 @@ Rules:
 ## Mechanical Guards
 
 - `scripts/test.lisp` runs rules, game, and web behavior tests.
+- `scripts/validate-architecture.lisp` validates source layering, dependency
+  declarations, and ASDF component order.
 - `scripts/validate-docs.lisp` validates the agent map, required knowledge docs,
-  Lisp SPDX headers, ASDF source order, dependency declarations, and
-  package/source dependency boundaries.
-- `nix flake check` runs both the behavior tests and harness validation.
+  and Lisp SPDX headers.
+- `scripts/browser-smoke.mjs` drives a real browser through player setup,
+  first-move HTMX swapping, computer-opponent play, game-over dialog focus,
+  responsive overflow checks, and screenshot refresh.
+- `nix flake check` runs the behavior tests, architecture validation, harness
+  validation, and browser smoke flow.

@@ -82,6 +82,53 @@
       (is (= 0 (game-active-board game)))
       (is (= 1 (game-move-count game))))))
 
+(test best-tactical-move-prefers-center
+  (let ((game (make-game)))
+    (multiple-value-bind (board cell)
+        (best-tactical-move game)
+      (is (= 0 board))
+      (is (= 4 cell)))))
+
+(test best-tactical-move-wins-local-board
+  (let ((game (make-game :next-player :o :active-board 2)))
+    (setf (aref (game-cells game) 2 0) :o
+          (aref (game-cells game) 2 1) :o)
+    (multiple-value-bind (board cell)
+        (best-tactical-move game)
+      (is (= 2 board))
+      (is (= 2 cell)))))
+
+(test best-tactical-move-blocks-local-board-win
+  (let ((game (make-game :next-player :o :active-board 3)))
+    (setf (aref (game-cells game) 3 0) :x
+          (aref (game-cells game) 3 1) :x)
+    (multiple-value-bind (board cell)
+        (best-tactical-move game)
+      (is (= 3 board))
+      (is (= 2 cell)))))
+
+(test best-tactical-move-prefers-sending-opponent-to-closed-board
+  (let ((game (make-game :next-player :o :active-board 0)))
+    (setf (aref (game-board-outcomes game) 1) :x)
+    (multiple-value-bind (board cell)
+        (best-tactical-move game)
+      (is (= 0 board))
+      (is (= 1 cell)))))
+
+(test play-best-tactical-move-applies-selected-move
+  (let ((game (make-game :next-player :o :active-board 2)))
+    (setf (aref (game-cells game) 2 0) :o
+          (aref (game-cells game) 2 1) :o)
+    (multiple-value-bind (updated-game acceptedp rejection)
+        (play-best-tactical-move game)
+      (is (eq updated-game game))
+      (is (not (null acceptedp)))
+      (is (null rejection))
+      (is (eql :o (mark-at game 2 2)))
+      (is (eql :o (board-outcome game 2)))
+      (is (eql :x (game-next-player game)))
+      (is (null (game-active-board game))))))
+
 (test completed-target-board-opens-the-choice
   (let ((game (make-game)))
     (setf (aref (game-board-outcomes game) 4) :draw)

@@ -57,6 +57,7 @@
   (dolist (marker '("ultimate-tic-tac-toe.game"
                     "ultimate-tic-tac-toe.web"
                     "hunchentoot"
+                    "woo"
                     "clack"
                     "lack"
                     "ningle"
@@ -73,6 +74,7 @@
 (defun validate-game-boundary ()
   (dolist (marker '("ultimate-tic-tac-toe.web"
                     "hunchentoot"
+                    "woo"
                     "clack"
                     "lack"
                     "ningle"
@@ -91,6 +93,9 @@
   (validate-forbidden-text "src/web.lisp"
                            "ultimate-tic-tac-toe.rules"
                            "web should call game APIs rather than bypassing the game layer")
+  (validate-forbidden-text "src/web.lisp"
+                           "clack.handler.hunchentoot::"
+                           "private adapter symbols should stay behind clack-hunchentoot-symbol")
   (dolist (marker '("clack:"
                     "lack:"
                     "ningle:"
@@ -113,6 +118,7 @@
                         "lack/middleware/session"
                         "ningle"
                         "spinneret"
+                        "clack-handler-woo"
                         "clack-handler-hunchentoot"
                         "hunchentoot"
                         "bordeaux-threads"
@@ -127,6 +133,7 @@
                         "lack-middleware-session"
                         "ningle"
                         "spinneret"
+                        "clack-handler-woo"
                         "clack-handler-hunchentoot"
                         "hunchentoot"
                         "bordeaux-threads"

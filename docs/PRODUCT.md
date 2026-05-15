@@ -16,8 +16,9 @@ players, or one human playing X against a deterministic computer opponent as O.
 - The global board is won by three closed local boards owned by the same player;
   it is a draw when all local boards are closed without a global winner.
 - Illegal moves do not advance the turn or mutate the board.
-- When O is set to Computer, the computer immediately applies the first legal
-  move after each human move and may start the game if O is selected first.
+- When O is set to Computer, the computer immediately applies a deterministic
+  tactical move after each human move and may start the game if O is selected
+  first.
 
 ## Player Experience
 

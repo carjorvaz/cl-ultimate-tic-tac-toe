@@ -7,10 +7,12 @@ a map, not a manual; the durable source of truth lives in `docs/`.
 
 1. Read `README.md` for run and test commands.
 2. Read `docs/README.md` to choose the right deeper document.
-3. Run `nix develop -c sbcl --script scripts/test.lisp` after code changes.
-4. Run `nix develop -c sbcl --script scripts/validate-docs.lisp` after changing
-   source boundaries, dependency declarations, system layout, repository
-   guidance, docs, scripts, or Lisp file headers.
+3. Run `direnv exec . sbcl --script scripts/test.lisp` after code changes.
+4. Run `direnv exec . sbcl --script scripts/validate-architecture.lisp` after
+   changing source boundaries, dependency declarations, or system layout.
+5. Run `direnv exec . sbcl --script scripts/validate-docs.lisp` after changing
+   repository guidance, docs, scripts, or Lisp file headers.
+6. Run `direnv exec . node scripts/browser-smoke.mjs` after UI changes.
 
 ## Source Of Truth
 

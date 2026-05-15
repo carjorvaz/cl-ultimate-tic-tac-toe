@@ -20,8 +20,17 @@
         (parse-integer raw :junk-allowed nil)
         4242)))
 
+(defun configured-server ()
+  (let ((raw (uiop:getenv "SERVER")))
+    (if raw
+        (intern (string-upcase raw) :keyword)
+        :woo)))
+
 (let ((port (configured-port)))
-  (ultimate-tic-tac-toe.web:start :port port)
-  (format t "~&Ultimate Tic Tac Toe listening on http://127.0.0.1:~D/~%" port)
+  (let ((server (configured-server)))
+    (ultimate-tic-tac-toe.web:start :port port :server server)
+    (format t "~&Ultimate Tic Tac Toe (~(~A~)) listening on http://127.0.0.1:~D/~%"
+            server
+            port))
   (finish-output)
   (loop (sleep 3600)))

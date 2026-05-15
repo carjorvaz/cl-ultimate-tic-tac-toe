@@ -12,6 +12,7 @@
                "lack/middleware/session"
                "ningle"
                "spinneret"
+               "clack-handler-woo"
                "clack-handler-hunchentoot"
                "hunchentoot"
                "bordeaux-threads"

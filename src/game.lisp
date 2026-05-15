@@ -16,6 +16,12 @@
     (2 4 6))
   "The winning triples in row-major board coordinates.")
 
+(defparameter *cell-position-scores*
+  #(20 0 20
+    0 40 0
+    20 0 20)
+  "Tie-break scores for center, corner, and edge cells.")
+
 (defstruct (game (:constructor make-game))
   (cells (make-array (list +board-count+ +board-count+) :initial-element nil))
   (board-outcomes (make-array +board-count+ :initial-element nil))
@@ -161,6 +167,60 @@
                         (values board cell))))
   (values nil nil))
 
+(defun local-board-outcome-with-mark (game board cell mark)
+  (let ((previous-mark (aref (game-cells game) board cell)))
+    (unwind-protect
+         (progn
+           (setf (aref (game-cells game) board cell) mark)
+           (local-board-outcome game board))
+      (setf (aref (game-cells game) board cell) previous-mark))))
+
+(defun global-outcome-with-board-outcome (game board outcome)
+  (let ((previous-outcome (aref (game-board-outcomes game) board)))
+    (unwind-protect
+         (progn
+           (setf (aref (game-board-outcomes game) board) outcome)
+           (global-outcome game))
+      (setf (aref (game-board-outcomes game) board) previous-outcome))))
+
+(defun target-board-complete-after-move-p (game board cell local-outcome)
+  (if (= board cell)
+      (not (null local-outcome))
+      (board-complete-p game cell)))
+
+(defun tactical-move-score (game board cell)
+  (let* ((player (game-next-player game))
+         (opponent (other-player player))
+         (local-outcome (local-board-outcome-with-mark game board cell player))
+         (global-outcome (global-outcome-with-board-outcome game
+                                                            board
+                                                            local-outcome))
+         (opponent-local-outcome
+           (local-board-outcome-with-mark game board cell opponent)))
+    (+ (if (eql global-outcome player) 10000 0)
+       (if (eql local-outcome player) 5000 0)
+       (if (eql opponent-local-outcome opponent) 2500 0)
+       (if (target-board-complete-after-move-p game board cell local-outcome)
+           800
+           0)
+       (aref *cell-position-scores* cell))))
+
+(defun best-tactical-move (game)
+  "Return a deterministic tactical BOARD and CELL for GAME, or NIL/NIL."
+  (let ((best-board nil)
+        (best-cell nil)
+        (best-score nil))
+    (loop for board below +board-count+
+          do (loop for cell below +board-count+
+                   when (legal-move-p game board cell)
+                     do (let ((score (tactical-move-score game board cell)))
+                          (when (or (null best-score)
+                                    (> score best-score))
+                            (setf best-board board
+                                  best-cell cell
+                                  best-score score)))))
+    (values best-board best-cell)))
+
 (defun update-outcomes-after-move (game board)
   (setf (aref (game-board-outcomes game) board)
         (local-board-outcome game board))
@@ -191,6 +251,14 @@ place so it can live directly in a web session."
   "Apply GAME's first legal move for the current player."
   (multiple-value-bind (board cell)
       (first-legal-move game)
+    (if (and board cell)
+        (play-move game board cell)
+        (values game nil nil))))
+
+(defun play-best-tactical-move (game)
+  "Apply GAME's best deterministic tactical move for the current player."
+  (multiple-value-bind (board cell)
+      (best-tactical-move game)
     (if (and board cell)
         (play-move game board cell)
         (values game nil nil))))

@@ -25,6 +25,7 @@
           lack-middleware-session
           ningle
           spinneret
+          clack-handler-woo
           hunchentoot
           clack-handler-hunchentoot
           bordeaux-threads
@@ -49,9 +50,10 @@
             ];
 
             shellHook = ''
-              export PLAYWRIGHT_CORE_PATH="${pkgs.playwright}"
+              export PLAYWRIGHT_CORE_PATH="${pkgs.playwright}/index.js"
               export PLAYWRIGHT_BROWSERS_PATH="${pkgs.playwright.browsers}"
               echo "Ultimate Tic Tac Toe: sbcl --script scripts/run.lisp"
+              echo "Browser smoke: node scripts/browser-smoke.mjs"
             '';
           };
         });
@@ -65,11 +67,23 @@
             cd ${self}
             exec ${lisp}/bin/sbcl --script scripts/run.lisp
           '';
+          browserSmokeRunner = pkgs.writeShellScriptBin "ultimate-tic-tac-toe-browser-smoke" ''
+            set -euo pipefail
+            cd ${self}
+            export PATH="${pkgs.lib.makeBinPath [ lisp pkgs.nodejs ]}:$PATH"
+            export PLAYWRIGHT_CORE_PATH="${pkgs.playwright}/index.js"
+            export PLAYWRIGHT_BROWSERS_PATH="${pkgs.playwright.browsers}"
+            exec ${pkgs.nodejs}/bin/node scripts/browser-smoke.mjs
+          '';
         in
         {
           default = {
             type = "app";
             program = "${runner}/bin/ultimate-tic-tac-toe";
+          };
+          browser-smoke = {
+            type = "app";
+            program = "${browserSmokeRunner}/bin/ultimate-tic-tac-toe-browser-smoke";
           };
         });
 
@@ -89,10 +103,11 @@
             }
             ''
               export HOME="$TMPDIR"
-              export PLAYWRIGHT_CORE_PATH="${pkgs.playwright}"
+              export PLAYWRIGHT_CORE_PATH="${pkgs.playwright}/index.js"
               export PLAYWRIGHT_BROWSERS_PATH="${pkgs.playwright.browsers}"
               cd ${self}
               sbcl --script scripts/test.lisp
+              sbcl --script scripts/validate-architecture.lisp
               sbcl --script scripts/validate-docs.lisp
               node scripts/browser-smoke.mjs
               touch "$out"

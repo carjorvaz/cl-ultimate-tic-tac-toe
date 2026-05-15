@@ -1,8 +1,10 @@
 # Ultimate Tic Tac Toe
 
+[![CI](https://github.com/carjorvaz/ultimate-tic-tac-toe/actions/workflows/ci.yml/badge.svg)](https://github.com/carjorvaz/ultimate-tic-tac-toe/actions/workflows/ci.yml)
+
 Server-rendered Ultimate Tic Tac Toe in Common Lisp, using Clack, Lack,
-Ningle, Spinneret, a Hunchentoot backend, and vendored HTMX for small partial
-updates.
+Ningle, Spinneret, a Woo backend by default, a Hunchentoot fallback, and
+vendored HTMX for small partial updates.
 
 It supports local two-player games and an optional deterministic computer
 opponent for O.
@@ -27,21 +29,35 @@ nix develop -c sbcl --script scripts/run.lisp
 ```
 
 The app listens on `http://127.0.0.1:4242/` by default. Set `PORT` to change
-the port.
+the port, set `SERVER=hunchentoot` to use the fallback backend, and set
+`SOURCE_CODE_URL` to change the footer source link for deployed forks.
 
 ## Test
 
 ```sh
-nix develop -c sbcl --script scripts/test.lisp
+direnv exec . sbcl --script scripts/test.lisp
 ```
 
-Run the browser smoke check with:
+Run the browser smoke check for responsive layout, HTMX behavior, computer
+opponent play, and basic accessibility wiring with:
 
 ```sh
-nix develop -c node scripts/browser-smoke.mjs
+direnv exec . node scripts/browser-smoke.mjs
 ```
 
-or:
+or through the flake app:
+
+```sh
+nix run .#browser-smoke
+```
+
+Refresh the README screenshots from the smoke flow with:
+
+```sh
+UPDATE_SCREENSHOTS=1 direnv exec . node scripts/browser-smoke.mjs
+```
+
+Run the full repository check with:
 
 ```sh
 nix flake check
@@ -53,10 +69,16 @@ nix flake check
 `docs/`, including architecture, product behavior, reliability, quality, and
 execution-plan guidance.
 
+Validate source boundaries and dependency declarations with:
+
+```sh
+direnv exec . sbcl --script scripts/validate-architecture.lisp
+```
+
 Validate the repository harness with:
 
 ```sh
-nix develop -c sbcl --script scripts/validate-docs.lisp
+direnv exec . sbcl --script scripts/validate-docs.lisp
 ```
 
 ## Notes

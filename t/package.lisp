@@ -24,5 +24,7 @@
                 #:mark-at
                 #:legal-move-p
                 #:first-legal-move
+                #:best-tactical-move
                 #:play-move
-                #:play-first-legal-move))
+                #:play-first-legal-move
+                #:play-best-tactical-move))

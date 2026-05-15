@@ -41,9 +41,11 @@
    #:mark-at
    #:legal-move-p
    #:first-legal-move
+   #:best-tactical-move
    #:available-board-p
    #:play-move
    #:play-first-legal-move
+   #:play-best-tactical-move
    #:game-over-p))
 
 (defpackage #:ultimate-tic-tac-toe.web
@@ -67,6 +69,7 @@
                 #:available-board-p
                 #:play-move
                 #:play-first-legal-move
+                #:play-best-tactical-move
                 #:game-over-p)
   (:export
    #:start

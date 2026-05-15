@@ -23,8 +23,14 @@
 
 (defparameter *html-content-type* "text/html; charset=utf-8")
 
+(defparameter *default-source-code-url*
+  "https://github.com/carjorvaz/ultimate-tic-tac-toe")
+
 (defparameter *system-root*
   (asdf:system-source-directory :ultimate-tic-tac-toe))
+
+(defparameter *clack-hunchentoot-package-name*
+  "CLACK.HANDLER.HUNCHENTOOT")
 
 (defparameter *session-state-lock*
   (bordeaux-threads:make-lock "ultimate-tic-tac-toe-session-state"))
@@ -45,6 +51,15 @@
 
 (defun system-path (relative-path)
   (merge-pathnames relative-path *system-root*))
+
+(defun source-code-url ()
+  (or (uiop:getenv "SOURCE_CODE_URL")
+      *default-source-code-url*))
+
+(defun repository-file-url (relative-path)
+  (format nil "~A/blob/master/~A"
+          (string-right-trim "/" (source-code-url))
+          relative-path))
 
 (defun clack-response (status body &key content-type headers)
   (list status
@@ -262,7 +277,7 @@
 
 (defun respond-after-post (game &key notice)
   (if (htmx-request-p)
-      (html-response (render-game-fragment game :notice notice))
+      (html-response (render-htmx-response game :notice notice))
       (progn
         (remember-notice notice)
         (redirect-response "/"))))
@@ -293,7 +308,7 @@
 
 (defun maybe-play-computer-turn (game)
   (when (computer-turn-p game)
-    (play-first-legal-move game))
+    (play-best-tactical-move game))
   game)
 
 (defun mark-asset (mark)
@@ -521,15 +536,18 @@
             :role "dialog"
             :aria-modal "true"
             :aria-labelledby "game-over-title"
+            :aria-describedby "game-over-detail"
         (:div :class "game-over-panel"
           (:p :class "dialog-eyebrow" "Game over")
           (:h2 :id "game-over-title"
             (result-label game))
           (:p :class "dialog-detail"
+              :id "game-over-detail"
             (game-over-detail game))
           (with-game-post-form (*games-path* :class "dialog-actions")
             (:button :class "dialog-button"
                      :type "submit"
+                     :autofocus t
                      "New game")))))))
 
 (defun emit-game-fragment (game &key notice)
@@ -551,6 +569,7 @@
           (with-game-post-form (*games-path* :class "reset-form")
             (:button :class "reset-button"
                      :type "submit"
+                     :tabindex (when (game-over-p game) -1)
                      :aria-label "Start a new game"
                      "New game")))
         (:div :class "status-row"
@@ -578,6 +597,31 @@
   (spinneret:with-html-string
     (emit-game-fragment game :notice notice)))
 
+(defun emit-page-footer (game &key out-of-band)
+  (let ((background-tabindex (when (game-over-p game) -1)))
+    (spinneret:with-html
+      (:footer :id "site-footer"
+               :class "site-footer"
+               :aria-hidden (when (game-over-p game) "true")
+               :hx-swap-oob (when out-of-band "outerHTML")
+        (:a :href (source-code-url)
+            :tabindex background-tabindex
+            "Source code")
+        (:span :class "footer-separator"
+               :aria-hidden "true"
+               "·")
+        (:a :href (repository-file-url "LICENSE")
+            :rel "license"
+            :tabindex background-tabindex
+            "AGPL-3.0-or-later")))))
+
+(defun render-htmx-response (game &key notice)
+  (concatenate
+   'string
+   (render-game-fragment game :notice notice)
+   (spinneret:with-html-string
+     (emit-page-footer game :out-of-band t))))
+
 (defun render-page (game &key notice)
   (concatenate
    'string
@@ -595,10 +639,13 @@
          (:link :rel "stylesheet"
                 :href "/style.css")
          (:script :src "/htmx.min.js"
+                  :defer t)
+         (:script :src "/app.js"
                   :defer t))
        (:body
          (:main :class "app"
-           (emit-game-fragment game :notice notice)))))))
+           (emit-game-fragment game :notice notice)
+           (emit-page-footer game)))))))
 
 (defun home-handler (params)
   (declare (ignore params))
@@ -612,7 +659,7 @@
     (let ((game (maybe-play-computer-turn (current-game))))
       (html-response
        (if (htmx-request-p)
-           (render-game-fragment game)
+           (render-htmx-response game)
            (render-page game))))))
 
 (defun move-handler (params)
@@ -659,6 +706,10 @@
   (declare (ignore params))
   (asset-response "static/htmx.min.js" "application/javascript; charset=utf-8"))
 
+(defun app-script-handler (params)
+  (declare (ignore params))
+  (asset-response "static/app.js" "application/javascript; charset=utf-8"))
+
 (defun icon-handler (params)
   (declare (ignore params))
   (asset-response "static/icon.svg" "image/svg+xml"))
@@ -682,6 +733,7 @@
           (ningle:route app "/reset" :method :post) #'games-handler
           (ningle:route app "/style.css" :method :get) #'style-handler
           (ningle:route app "/htmx.min.js" :method :get) #'htmx-handler
+          (ningle:route app "/app.js" :method :get) #'app-script-handler
           (ningle:route app "/icon.svg" :method :get) #'icon-handler
           (ningle:route app "/x.svg" :method :get) #'x-mark-handler
           (ningle:route app "/o.svg" :method :get) #'o-mark-handler)
@@ -693,21 +745,32 @@
     #'wrap-request-env
     (make-routes)))
 
-;; The exported Clack Hunchentoot runner owns its thread lifecycle; keeping the
-;; raw acceptor here lets local tests and scripts stop the default backend cleanly.
-(defun start-hunchentoot (port debug)
-  (clack.handler.hunchentoot::initialize)
-  (hunchentoot:start
-   (make-instance 'clack.handler.hunchentoot::clack-acceptor
-                  :app (make-app)
-                  :address "127.0.0.1"
-                  :port port
-                  :debug debug
-                  :access-log-destination nil
-                  :error-template-directory nil
-                  :persistent-connections-p nil)))
+(defun clack-hunchentoot-symbol (name)
+  (let ((package (find-package *clack-hunchentoot-package-name*)))
+    (or (and package (find-symbol name package))
+        (error "Could not find ~A in ~A." name *clack-hunchentoot-package-name*))))
 
-(defun start (&key (port 4242) (server :hunchentoot) (debug nil) silent)
+;; Clack's exported Hunchentoot runner blocks and owns shutdown. The test
+;; lifecycle keeps Hunchentoot's acceptor directly so failures are synchronous
+;; and shutdown is clean; keep the private adapter names quarantined here.
+(defun initialize-clack-hunchentoot ()
+  (funcall (symbol-function (clack-hunchentoot-symbol "INITIALIZE"))))
+
+(defun make-clack-hunchentoot-acceptor (port debug)
+  (make-instance (clack-hunchentoot-symbol "CLACK-ACCEPTOR")
+                 :app (make-app)
+                 :address "127.0.0.1"
+                 :port port
+                 :debug debug
+                 :access-log-destination nil
+                 :error-template-directory nil
+                 :persistent-connections-p nil))
+
+(defun start-hunchentoot (port debug)
+  (initialize-clack-hunchentoot)
+  (hunchentoot:start (make-clack-hunchentoot-acceptor port debug)))
+
+(defun start (&key (port 4242) (server :woo) (debug nil) silent)
   (stop)
   (setf *server*
         (if (eql server :hunchentoot)
