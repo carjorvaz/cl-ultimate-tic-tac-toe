@@ -55,6 +55,8 @@
 (defparameter *agent-map-links*
   '("docs/README.md"
     "docs/ARCHITECTURE.md"
+    "docs/accessibility-review.md"
+    "docs/common-lisp-web-template.md"
     "docs/hypermedia-architecture.md"
     "docs/PRODUCT.md"
     "docs/RELIABILITY.md"

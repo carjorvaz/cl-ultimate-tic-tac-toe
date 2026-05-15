@@ -21,6 +21,10 @@ a map, not a manual; the durable source of truth lives in `docs/`.
 ## Source Of Truth
 
 - `docs/ARCHITECTURE.md` describes module boundaries and dependency direction.
+- `docs/accessibility-review.md` describes the manual screen-reader review
+  runbook.
+- `docs/common-lisp-web-template.md` records the reusable Common Lisp web app
+  template contract.
 - `docs/hypermedia-architecture.md` describes the HTTP and HTML contract.
 - `docs/PRODUCT.md` describes the game contract and expected player experience.
 - `docs/RELIABILITY.md` describes runtime, session, and validation expectations.
