@@ -28,6 +28,8 @@ The app treats HTML as its public application protocol:
 
 - `GET /` returns the full current-game page.
 - `GET /legal` returns the legal notices page.
+- `GET /health` returns a plain-text liveness response for deployment checks.
+- `GET /version` returns a plain-text application name and ASDF version.
 - `GET /games/current` returns the current game representation.
 - `POST /games` creates a fresh session game and may update player settings.
 - `POST /games/current/moves` applies a move to the current game.
@@ -44,6 +46,10 @@ representations.
 Browser assets are local: `GET /htmx.min.js` serves the vendored HTMX asset,
 and `GET /app.js` serves the app's progressive-enhancement script from
 `static/`.
+
+Responses receive conservative default security headers at the Clack boundary:
+`X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`,
+`Permissions-Policy`, and a self-only `Content-Security-Policy`.
 
 ## Client Scripting Policy
 

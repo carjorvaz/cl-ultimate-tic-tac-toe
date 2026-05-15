@@ -430,7 +430,7 @@ h1{
 }
 
 .opponent-field{
-    min-width: 210px;
+    min-width: 232px;
 }
 
 .first-player-field legend, .opponent-field legend{
@@ -454,7 +454,7 @@ h1{
 }
 
 .opponent-choices{
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(4, 1fr);
 }
 
 .first-choice, .opponent-choice{
@@ -469,8 +469,8 @@ h1{
 }
 
 .opponent-choice{
-    min-width: 62px;
-    font-size: 0.78rem;
+    min-width: 54px;
+    font-size: 0.76rem;
 }
 
 .first-choice + .first-choice, .opponent-choice + .opponent-choice{

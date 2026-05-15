@@ -129,6 +129,58 @@
       (is (eql :x (game-next-player game)))
       (is (null (game-active-board game))))))
 
+(test best-strategic-move-wins-global-game
+  (let ((game (make-game :next-player :o :active-board 2)))
+    (setf (aref (game-board-outcomes game) 0) :o
+          (aref (game-board-outcomes game) 1) :o
+          (aref (game-cells game) 2 0) :o
+          (aref (game-cells game) 2 1) :o)
+    (multiple-value-bind (board cell)
+        (best-strategic-move game)
+      (is (= 2 board))
+      (is (= 2 cell)))))
+
+(test best-strategic-move-avoids-sending-opponent-to-global-win
+  (let ((game (make-game :next-player :o :active-board 0)))
+    (setf (aref (game-board-outcomes game) 3) :x
+          (aref (game-board-outcomes game) 5) :x
+          (aref (game-cells game) 0 0) :o
+          (aref (game-cells game) 0 8) :o
+          (aref (game-cells game) 4 0) :x
+          (aref (game-cells game) 4 1) :x)
+    (multiple-value-bind (board cell)
+        (best-strategic-move game)
+      (is (= 0 board))
+      (is (not (= 4 cell))))))
+
+(test best-strategic-move-does-not-mutate-game
+  (let ((game (make-game :next-player :o :active-board 2)))
+    (setf (aref (game-board-outcomes game) 0) :o
+          (aref (game-board-outcomes game) 1) :o
+          (aref (game-cells game) 2 0) :o
+          (aref (game-cells game) 2 1) :o)
+    (best-strategic-move game)
+    (is (= 0 (game-move-count game)))
+    (is (eql :o (game-next-player game)))
+    (is (= 2 (game-active-board game)))
+    (is (null (game-winner game)))
+    (is (null (mark-at game 2 2)))
+    (is (null (board-outcome game 2)))))
+
+(test play-best-strategic-move-applies-selected-move
+  (let ((game (make-game :next-player :o :active-board 2)))
+    (setf (aref (game-board-outcomes game) 0) :o
+          (aref (game-board-outcomes game) 1) :o
+          (aref (game-cells game) 2 0) :o
+          (aref (game-cells game) 2 1) :o)
+    (multiple-value-bind (updated-game acceptedp rejection)
+        (play-best-strategic-move game)
+      (is (eq updated-game game))
+      (is (not (null acceptedp)))
+      (is (null rejection))
+      (is (eql :o (mark-at game 2 2)))
+      (is (eql :o (game-winner game))))))
+
 (test completed-target-board-opens-the-choice
   (let ((game (make-game)))
     (setf (aref (game-board-outcomes game) 4) :draw)

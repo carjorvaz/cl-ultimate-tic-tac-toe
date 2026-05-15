@@ -23,7 +23,13 @@
 
 (defparameter *legal-notices-path* "/legal")
 
+(defparameter *health-path* "/health")
+
+(defparameter *version-path* "/version")
+
 (defparameter *html-content-type* "text/html; charset=utf-8")
+
+(defparameter *plain-text-content-type* "text/plain; charset=utf-8")
 
 (defparameter *default-source-code-url*
   "https://github.com/carjorvaz/ultimate-tic-tac-toe")
@@ -56,6 +62,23 @@
     ("/x.svg" "static/x.svg" "image/svg+xml")
     ("/o.svg" "static/o.svg" "image/svg+xml")))
 
+(defparameter *security-headers*
+  (list :x-content-type-options "nosniff"
+        :x-frame-options "DENY"
+        :referrer-policy "same-origin"
+        :permissions-policy "camera=(), microphone=(), geolocation=()"
+        :content-security-policy
+        (format nil "~{~A~^; ~}"
+                '("default-src 'self'"
+                  "base-uri 'none'"
+                  "connect-src 'self'"
+                  "form-action 'self'"
+                  "frame-ancestors 'none'"
+                  "img-src 'self'"
+                  "object-src 'none'"
+                  "script-src 'self'"
+                  "style-src 'self'"))))
+
 (defun css-classes (&rest names)
   (format nil "~{~A~^ ~}" (remove nil names)))
 
@@ -71,12 +94,49 @@
           (string-right-trim "/" (source-code-url))
           relative-path))
 
+(defun app-version ()
+  (asdf:component-version (asdf:find-system :ultimate-tic-tac-toe)))
+
+(defun header-key-name (key)
+  (etypecase key
+    (keyword (symbol-name key))
+    (symbol (symbol-name key))
+    (string key)))
+
+(defun header-present-p (headers key)
+  (loop for rest on headers by #'cddr
+        for name = (first rest)
+        thereis (string-equal (header-key-name name)
+                              (header-key-name key))))
+
+(defun missing-default-headers (headers defaults)
+  (loop for (name value) on defaults by #'cddr
+        unless (header-present-p headers name)
+          append (list name value)))
+
+(defun response-headers (&key content-type headers)
+  (let ((explicit-headers
+          (append (when content-type
+                    (list :content-type content-type))
+                  headers)))
+    (append explicit-headers
+            (missing-default-headers explicit-headers *security-headers*))))
+
 (defun clack-response (status body &key content-type headers)
   (list status
-        (append (when content-type
-                  (list :content-type content-type))
-                headers)
+        (response-headers :content-type content-type :headers headers)
         (list body)))
+
+(defun response-with-default-headers (response)
+  (destructuring-bind (status headers body) response
+    (list status
+          (append headers
+                  (missing-default-headers headers *security-headers*))
+          body)))
+
+(defun wrap-default-headers (app)
+  (lambda (env)
+    (response-with-default-headers (funcall app env))))
 
 (defun html-response (body)
   (clack-response 200 body :content-type *html-content-type*))
@@ -87,7 +147,7 @@
 (defun not-found-response ()
   (clack-response 404
                   "Not found"
-                  :content-type "text/plain; charset=utf-8"))
+                  :content-type *plain-text-content-type*))
 
 (defun asset-response (relative-path content-type)
   (let ((path (system-path relative-path)))
@@ -245,6 +305,7 @@
 (defun parse-opponent-mode (value)
   (cond
     ((string-equal value "easy") :easy)
+    ((string-equal value "hard") :hard)
     ((or (string-equal value "normal")
          (string-equal value "computer"))
      :normal)
@@ -264,6 +325,7 @@
   (ecase (session-opponent-mode)
     (:human "human")
     (:easy "easy")
+    (:hard "hard")
     (:normal "normal")))
 
 (defun session-computer-player ()
@@ -273,6 +335,7 @@
 (defun session-computer-label ()
   (ecase (session-opponent-mode)
     (:easy "Easy CPU")
+    (:hard "Hard CPU")
     (:normal "Normal CPU")))
 
 (defun remember-player-settings (player-x player-o first-player opponent)
@@ -343,7 +406,8 @@
   (when (computer-turn-p game)
     (ecase (session-opponent-mode)
       (:easy (play-first-legal-move game))
-      (:normal (play-best-tactical-move game))))
+      (:normal (play-best-tactical-move game))
+      (:hard (play-best-strategic-move game))))
   game)
 
 (defun mark-asset (mark)
@@ -505,7 +569,8 @@
         (:div :class "opponent-choices"
           (emit-opponent-option "human" "Human")
           (emit-opponent-option "easy" "Easy")
-          (emit-opponent-option "normal" "Normal")))
+          (emit-opponent-option "normal" "Normal")
+          (emit-opponent-option "hard" "Hard")))
       (:fieldset :class "first-player-field"
         (:legend "First")
         (:div :class "first-choices"
@@ -710,8 +775,13 @@
                        "LICENSE")
                    "."))
              (:p :class "legal-actions"
-               (:a :href "/" "Back to game")))
+                   (:a :href "/" "Back to game")))
            (emit-page-footer)))))))
+
+(defun emit-htmx-config ()
+  (spinneret:with-html
+    (:meta :name "htmx-config"
+           :content "{\"includeIndicatorStyles\": false, \"allowEval\": false, \"allowScriptTags\": false, \"attributesToSettle\": [\"class\", \"width\", \"height\"]}")))
 
 (defun render-page (game &key notice)
   (concatenate
@@ -729,6 +799,7 @@
                 :type "image/svg+xml")
          (:link :rel "stylesheet"
                 :href "/style.css")
+         (emit-htmx-config)
          (:script :src "/htmx.min.js"
                   :defer t)
          (:script :src "/app.js"
@@ -756,6 +827,20 @@
 (defun legal-notices-handler (params)
   (declare (ignore params))
   (html-response (render-legal-notices-page)))
+
+(defun health-handler (params)
+  (declare (ignore params))
+  (clack-response 200
+                  (format nil "ok~%")
+                  :content-type *plain-text-content-type*
+                  :headers (list :cache-control "no-store")))
+
+(defun version-handler (params)
+  (declare (ignore params))
+  (clack-response 200
+                  (format nil "ultimate-tic-tac-toe ~A~%" (app-version))
+                  :content-type *plain-text-content-type*
+                  :headers (list :cache-control "no-store")))
 
 (defun move-handler (params)
   (if (csrf-parameter-valid-p params)
@@ -819,6 +904,8 @@
      app
      (list (list :get "/" #'home-handler)
            (list :get *legal-notices-path* #'legal-notices-handler)
+           (list :get *health-path* #'health-handler)
+           (list :get *version-path* #'version-handler)
            (list :get *current-game-path* #'current-game-handler)
            (list :post *games-path* #'games-handler)
            (list :post *current-game-moves-path* #'move-handler)
@@ -829,10 +916,11 @@
     app))
 
 (defun make-app ()
-  (lack:builder
-    (:session :keep-empty nil)
-    #'wrap-request-env
-    (make-routes)))
+  (wrap-default-headers
+   (lack:builder
+     (:session :keep-empty nil)
+     #'wrap-request-env
+     (make-routes))))
 
 (defun clack-hunchentoot-symbol (name)
   (let ((package (find-package *clack-hunchentoot-package-name*)))

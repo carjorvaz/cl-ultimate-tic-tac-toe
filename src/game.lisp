@@ -34,6 +34,27 @@
 (defconstant +tactical-open-choice-score+ 800
   "Score bonus for sending the opponent to an already completed board.")
 
+(defconstant +hard-search-depth+ 2
+  "Number of plies searched by the hard deterministic opponent.")
+
+(defconstant +hard-terminal-win-score+ 1000000
+  "Search score for a forced global win.")
+
+(defconstant +hard-owned-board-score+ 1200
+  "Static score for owning a local board.")
+
+(defconstant +hard-global-two-score+ 6000
+  "Static score for threatening a global line.")
+
+(defconstant +hard-global-one-score+ 450
+  "Static score for owning one board in an open global line.")
+
+(defconstant +hard-local-two-score+ 180
+  "Static score for threatening a local board.")
+
+(defconstant +hard-local-one-score+ 24
+  "Static score for owning one mark in an open local line.")
+
 (defstruct (game (:constructor make-game))
   (cells (make-array (list +board-count+ +board-count+) :initial-element nil))
   (board-outcomes (make-array +board-count+ :initial-element nil))
@@ -241,6 +262,170 @@
                 best-cell cell
                 best-score score))))))
 
+(defun copy-game-cells (cells)
+  (let ((copy (make-array (array-dimensions cells))))
+    (loop for board below +board-count+
+          do (loop for cell below +board-count+
+                   do (setf (aref copy board cell)
+                            (aref cells board cell))))
+    copy))
+
+(defun clone-game-state (game)
+  (let ((clone (copy-game game)))
+    (setf (game-cells clone)
+          (copy-game-cells (game-cells game))
+          (game-board-outcomes clone)
+          (copy-seq (game-board-outcomes game)))
+    clone))
+
+(defun game-after-move (game board cell)
+  (let ((clone (clone-game-state game)))
+    (multiple-value-bind (updated-game acceptedp rejection)
+        (play-move clone board cell)
+      (declare (ignore acceptedp rejection))
+      updated-game)))
+
+(defun line-control-score (values player opponent one-score two-score)
+  (let ((player-count 0)
+        (opponent-count 0)
+        (blocked-p nil))
+    (dolist (value values)
+      (cond
+        ((eql value player)
+         (incf player-count))
+        ((eql value opponent)
+         (incf opponent-count))
+        ((null value))
+        (t
+         (setf blocked-p t))))
+    (cond
+      (blocked-p 0)
+      ((and (plusp player-count)
+            (plusp opponent-count))
+       0)
+      ((= player-count 2) two-score)
+      ((= opponent-count 2) (- two-score))
+      ((= player-count 1) one-score)
+      ((= opponent-count 1) (- one-score))
+      (t 0))))
+
+(defun board-outcome-line-values (game line)
+  (mapcar (lambda (board)
+            (board-outcome game board))
+          line))
+
+(defun local-mark-line-values (game board line)
+  (mapcar (lambda (cell)
+            (mark-at game board cell))
+          line))
+
+(defun global-line-evaluation (game player opponent)
+  (loop for line in *winning-lines*
+        sum (line-control-score (board-outcome-line-values game line)
+                                player
+                                opponent
+                                +hard-global-one-score+
+                                +hard-global-two-score+)))
+
+(defun local-board-evaluation (game board player opponent)
+  (let ((outcome (board-outcome game board)))
+    (cond
+      ((eql outcome player)
+       +hard-owned-board-score+)
+      ((eql outcome opponent)
+       (- +hard-owned-board-score+))
+      (outcome 0)
+      (t
+       (+ (loop for line in *winning-lines*
+                sum (line-control-score (local-mark-line-values game board line)
+                                        player
+                                        opponent
+                                        +hard-local-one-score+
+                                        +hard-local-two-score+))
+          (loop for cell below +board-count+
+                for mark = (mark-at game board cell)
+                sum (cond
+                      ((eql mark player)
+                       (aref *cell-position-scores* cell))
+                      ((eql mark opponent)
+                       (- (aref *cell-position-scores* cell)))
+                      (t 0))))))))
+
+(defun hard-static-evaluation (game player)
+  (let ((opponent (other-player player)))
+    (+ (global-line-evaluation game player opponent)
+       (loop for board below +board-count+
+             sum (local-board-evaluation game board player opponent)))))
+
+(defun hard-terminal-score (game player ply)
+  (let ((winner (game-winner game)))
+    (cond
+      ((null winner)
+       (values 0 nil))
+      ((eql winner player)
+       (values (- +hard-terminal-win-score+ ply) t))
+      ((eql winner (other-player player))
+       (values (- ply +hard-terminal-win-score+) t))
+      (t
+       (values 0 t)))))
+
+(defun better-search-score-p (score best-score maximizing-p)
+  (or (null best-score)
+      (if maximizing-p
+          (> score best-score)
+          (< score best-score))))
+
+(defun hard-search-score (game player depth ply)
+  (multiple-value-bind (terminal-score terminalp)
+      (hard-terminal-score game player ply)
+    (cond
+      (terminalp terminal-score)
+      ((zerop depth)
+       (hard-static-evaluation game player))
+      (t
+       (let ((best-score nil)
+             (maximizing-p (eql (game-next-player game) player)))
+         (do-legal-moves (board cell game)
+           (let ((score (hard-search-score (game-after-move game board cell)
+                                           player
+                                           (1- depth)
+                                           (1+ ply))))
+             (when (better-search-score-p score best-score maximizing-p)
+               (setf best-score score))))
+         (or best-score
+             (hard-static-evaluation game player)))))))
+
+(defun better-strategic-score-p (score tactical-score
+                                 best-score best-tactical-score)
+  (or (null best-score)
+      (> score best-score)
+      (and (= score best-score)
+           (or (null best-tactical-score)
+               (> tactical-score best-tactical-score)))))
+
+(defun best-strategic-move (game &key (depth +hard-search-depth+))
+  "Return a deterministic search-backed BOARD and CELL for GAME, or NIL/NIL."
+  (let ((player (game-next-player game))
+        (search-depth (max 0 depth))
+        (best-board nil)
+        (best-cell nil)
+        (best-score nil)
+        (best-tactical-score nil))
+    (do-legal-moves (board cell game (values best-board best-cell))
+      (let* ((score (hard-search-score (game-after-move game board cell)
+                                       player
+                                       (max 0 (1- search-depth))
+                                       1))
+             (tactical-score (tactical-move-score game board cell)))
+        (when (better-strategic-score-p score
+                                        tactical-score
+                                        best-score
+                                        best-tactical-score)
+          (setf best-board board
+                best-cell cell
+                best-score score
+                best-tactical-score tactical-score))))))
+
 (defun update-outcomes-after-move (game board)
   (setf (aref (game-board-outcomes game) board)
         (local-board-outcome game board))
@@ -279,6 +464,14 @@ place so it can live directly in a web session."
   "Apply GAME's best deterministic tactical move for the current player."
   (multiple-value-bind (board cell)
       (best-tactical-move game)
+    (if (and board cell)
+        (play-move game board cell)
+        (values game nil nil))))
+
+(defun play-best-strategic-move (game)
+  "Apply GAME's best deterministic search-backed move for the current player."
+  (multiple-value-bind (board cell)
+      (best-strategic-move game)
     (if (and board cell)
         (play-move game board cell)
         (values game nil nil))))

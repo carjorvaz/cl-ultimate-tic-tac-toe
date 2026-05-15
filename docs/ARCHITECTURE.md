@@ -57,7 +57,7 @@ Rules:
 
 - `scripts/test.lisp` runs rules, game, and web behavior tests.
 - `scripts/validate-architecture.lisp` validates source layering, dependency
-  declarations, and ASDF component order.
+  declarations, ASDF component order, and the client scripting boundary.
 - `scripts/build-assets.lisp` regenerates `static/style.css` from
   `assets/style.lass`.
 - `scripts/validate-assets.lisp` verifies generated assets are current.
@@ -65,6 +65,7 @@ Rules:
   and Lisp SPDX headers.
 - `scripts/browser-smoke.mjs` drives a real browser through player setup,
   first-move HTMX swapping, computer-opponent play, game-over dialog focus,
-  responsive overflow checks, screenshot regression, and screenshot refresh.
+  responsive overflow checks, browser accessibility-tree checks, screenshot
+  regression, and screenshot refresh.
 - `nix flake check` runs asset validation, behavior tests, architecture
-  validation, harness validation, and browser smoke flow.
+  validation, and harness validation.

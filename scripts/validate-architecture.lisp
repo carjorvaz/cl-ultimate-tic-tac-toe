@@ -107,6 +107,19 @@
                     "spinneret:"))
     (validate-required-text "src/web.lisp" marker)))
 
+(defun validate-client-script-boundary ()
+  (dolist (marker '(("fetch(" "client scripting must not add a JSON/RPC request layer")
+                    ("XMLHttpRequest" "client scripting must not add a JSON/RPC request layer")
+                    ("localStorage" "game state must stay server-side")
+                    ("sessionStorage" "game state must stay server-side")
+                    ("indexedDB" "game state must stay server-side")
+                    ("history.pushState" "routing must stay hypermedia-driven")
+                    ("history.replaceState" "routing must stay hypermedia-driven")
+                    ("window.location" "routing must stay hypermedia-driven")
+                    ("document.cookie" "session handling belongs at the HTTP boundary")))
+    (destructuring-bind (text reason) marker
+      (validate-forbidden-text "static/app.js" text reason))))
+
 (defun validate-asdf-dependency (dependency)
   (validate-required-text "ultimate-tic-tac-toe.asd"
                           (format nil "\"~A\"" dependency)))
@@ -171,6 +184,7 @@
   (validate-rules-boundary)
   (validate-game-boundary)
   (validate-web-boundary)
+  (validate-client-script-boundary)
   (validate-dependencies)
   (validate-asdf-component-order)
   (if *errors*

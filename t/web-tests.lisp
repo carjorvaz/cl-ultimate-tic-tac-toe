@@ -224,6 +224,21 @@
         (bordeaux-threads:join-thread thread))
       (coerce results 'list))))
 
+(defun assert-security-headers (response)
+  (is (string= "nosniff"
+               (or (header-value response "X-Content-Type-Options") "")))
+  (is (string= "DENY"
+               (or (header-value response "X-Frame-Options") "")))
+  (is (string= "same-origin"
+               (or (header-value response "Referrer-Policy") "")))
+  (is (search "camera=()"
+              (or (header-value response "Permissions-Policy") "")))
+  (let ((policy (or (header-value response "Content-Security-Policy") "")))
+    (is (search "default-src 'self'" policy))
+    (is (search "script-src 'self'" policy))
+    (is (search "style-src 'self'" policy))
+    (is (search "frame-ancestors 'none'" policy))))
+
 (test new-game-fragment-renders-all-choices
   (let ((html (render-fragment (make-game))))
     (is (search "X to move" html))
@@ -298,6 +313,7 @@
       (is (search "aria-live=polite" (response-body response)))
       (is (search "src=\"/htmx.min.js\"" (response-body response)))
       (is (search "src=\"/app.js\"" (response-body response)))
+      (is (search "name=htmx-config" (response-body response)))
       (is (search "site-footer" (response-body response)))
       (is (search "id=site-footer" (response-body response)))
       (is (search "Source code" (response-body response)))
@@ -307,7 +323,32 @@
       (is (search "href=\"/legal\"" (response-body response)))
       (is (not (search "cdn.jsdelivr" (response-body response))))
       (is (not (search "unpkg" (response-body response))))
+      (assert-security-headers response)
       (is (not (search "hunchentoot-session" (response-body response)))))))
+
+(test operational-routes-render-status-without-sessions
+  (with-test-server (port)
+    (let ((health (http-request port "GET" "/health"))
+          (version (http-request port "GET" "/version")))
+      (is (= 200 (response-status health)))
+      (is (string= (format nil "ok~%")
+                   (response-body health)))
+      (is (string= "text/plain; charset=utf-8"
+                   (header-value health "Content-Type")))
+      (is (string= "no-store"
+                   (header-value health "Cache-Control")))
+      (is (not (header-value health "Set-Cookie")))
+      (assert-security-headers health)
+      (is (= 200 (response-status version)))
+      (is (string= "text/plain; charset=utf-8"
+                   (header-value version "Content-Type")))
+      (is (search "ultimate-tic-tac-toe"
+                  (response-body version)))
+      (is (search (ultimate-tic-tac-toe.web::app-version)
+                  (response-body version)))
+      (is (not (search "<!doctype html>" (response-body version))))
+      (is (not (header-value version "Set-Cookie")))
+      (assert-security-headers version))))
 
 (test legal-notices-page-renders-source-license-and-warranty
   (with-test-server (port)
@@ -322,6 +363,11 @@
                   (response-body response)))
       (is (search "rel=license" (response-body response)))
       (is (search "Back to game" (response-body response))))))
+
+(test responses-include-default-security-headers
+  (with-test-server (port)
+    (dolist (path '("/" "/legal" "/health" "/style.css" "/missing"))
+      (assert-security-headers (http-request port "GET" path)))))
 
 (test static-assets-are-served
   (with-test-server (port)
@@ -458,6 +504,24 @@
       (is (= 0 (count-substrings "mark mark-x" (response-body settings))))
       (is (= 1 (count-substrings "mark mark-o" (response-body settings))))
       (is (search "Normal CPU" (response-body settings))))))
+
+(test hard-computer-opponent-can-start
+  (with-test-server (port)
+    (let* ((home (http-request port "GET" "/"))
+           (cookie (response-cookie home))
+           (token (response-csrf-token home))
+           (settings (http-request port "POST" "/games"
+                                   :cookie cookie
+                                   :body (csrf-body token "player-x=Ada&player-o=CPU&first-player=o&opponent=hard")
+                                   :headers '(("HX-Request" . "true")))))
+      (is (= 200 (response-status settings)))
+      (is (search "Ada to move" (response-body settings)))
+      (is (search "Center board" (response-body settings)))
+      (is (search "player-strip" (response-body settings)))
+      (is (not (search "players-form" (response-body settings))))
+      (is (= 0 (count-substrings "mark mark-x" (response-body settings))))
+      (is (= 1 (count-substrings "mark mark-o" (response-body settings))))
+      (is (search "Hard CPU" (response-body settings))))))
 
 (test htmx-illegal-move-returns-fragment-with-notice
   (with-test-server (port)

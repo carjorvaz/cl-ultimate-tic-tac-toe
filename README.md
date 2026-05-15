@@ -6,8 +6,8 @@ Server-rendered Ultimate Tic Tac Toe in Common Lisp, using Clack, Lack,
 Ningle, Spinneret, a Woo backend by default, a Hunchentoot fallback, and
 vendored HTMX for small partial updates.
 
-It supports local two-player games and optional Easy or Normal deterministic
-computer opponents for O.
+It supports local two-player games and optional Easy, Normal, or Hard
+deterministic computer opponents for O.
 
 Play the deployed app at <https://ultimate-tic-tac-toe.carjorvaz.com/>.
 
@@ -33,6 +33,7 @@ nix develop -c sbcl --script scripts/run.lisp
 The app listens on `http://127.0.0.1:4242/` by default. Set `PORT` to change
 the port, set `SERVER=hunchentoot` to use the fallback backend, and set
 `SOURCE_CODE_URL` to change the footer source link for deployed forks.
+Readiness and version endpoints are available at `/health` and `/version`.
 
 ## Test
 
@@ -41,7 +42,8 @@ direnv exec . sbcl --script scripts/test.lisp
 ```
 
 Run the browser smoke check for responsive layout, HTMX behavior, computer
-opponent play, accessibility structure, and desktop screenshot regression with:
+opponent play, accessibility structure and browser accessibility-tree coverage,
+backend health probes, and desktop screenshot regression with:
 
 ```sh
 direnv exec . node scripts/browser-smoke.mjs
@@ -71,7 +73,7 @@ Verify generated assets are current with:
 direnv exec . sbcl --script scripts/validate-assets.lisp
 ```
 
-Run the full repository check with:
+Run the deterministic repository checks used by CI with:
 
 ```sh
 nix flake check

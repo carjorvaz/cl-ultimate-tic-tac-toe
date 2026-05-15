@@ -16,6 +16,11 @@ const screenshotDir = path.join(root, 'docs', 'assets', 'screenshots');
 const screenshotDiffPixelLimit = 0.004;
 const screenshotDiffChannelLimit = 1.6;
 const screenshotSignificantChannelDelta = 24;
+const screenshotOptions = {
+  fullPage: false,
+  animations: 'allow',
+  caret: 'initial',
+};
 const viewports = [
   { name: 'desktop', width: 1280, height: 900 },
   { name: 'mobile', width: 390, height: 844 },
@@ -106,10 +111,10 @@ async function findOpenPort() {
   });
 }
 
-function startServer() {
+function startServer(serverPort = port, extraEnv = {}) {
   const server = spawn('sbcl', ['--script', 'scripts/run.lisp'], {
     cwd: root,
-    env: { ...process.env, PORT: String(port) },
+    env: { ...process.env, ...extraEnv, PORT: String(serverPort) },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   const logs = [];
@@ -129,11 +134,11 @@ function startServer() {
   return { server, logs };
 }
 
-async function waitForServer() {
+async function waitForUrl(url) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     try {
-      const response = await fetch(baseUrl);
+      const response = await fetch(url);
       if (response.ok) {
         return;
       }
@@ -142,7 +147,11 @@ async function waitForServer() {
     }
     await delay(100);
   }
-  throw new Error(`Timed out waiting for ${baseUrl}`);
+  throw new Error(`Timed out waiting for ${url}`);
+}
+
+async function waitForServer() {
+  await waitForUrl(baseUrl);
 }
 
 async function stopServer(server) {
@@ -164,6 +173,72 @@ async function stopServer(server) {
 function assert(condition, message) {
   if (!condition) {
     throw new Error(message);
+  }
+}
+
+function assertHeader(response, name, expected, label) {
+  const actual = response.headers.get(name);
+  assert(actual === expected, `${label} expected ${name}: ${expected}, got ${actual ?? '(missing)'}`);
+}
+
+function assertSecurityHeaders(response, label) {
+  assertHeader(response, 'x-content-type-options', 'nosniff', label);
+  assertHeader(response, 'x-frame-options', 'DENY', label);
+  assertHeader(response, 'referrer-policy', 'same-origin', label);
+
+  const permissionsPolicy = response.headers.get('permissions-policy') || '';
+  assert(permissionsPolicy.includes('camera=()'), `${label} missing camera permissions policy`);
+  assert(permissionsPolicy.includes('microphone=()'), `${label} missing microphone permissions policy`);
+  assert(permissionsPolicy.includes('geolocation=()'), `${label} missing geolocation permissions policy`);
+
+  const contentSecurityPolicy = response.headers.get('content-security-policy') || '';
+  for (const directive of [
+    "default-src 'self'",
+    "script-src 'self'",
+    "style-src 'self'",
+    "frame-ancestors 'none'",
+  ]) {
+    assert(contentSecurityPolicy.includes(directive), `${label} missing CSP directive ${directive}`);
+  }
+}
+
+async function assertOperationalEndpoints(url, label) {
+  const health = await fetch(new URL('/health', url));
+  assert(health.status === 200, `${label} /health returned ${health.status}`);
+  assertHeader(health, 'content-type', 'text/plain; charset=utf-8', `${label} /health`);
+  assertHeader(health, 'cache-control', 'no-store', `${label} /health`);
+  assert((await health.text()) === 'ok\n', `${label} /health body was not ok`);
+  assertSecurityHeaders(health, `${label} /health`);
+
+  const version = await fetch(new URL('/version', url));
+  assert(version.status === 200, `${label} /version returned ${version.status}`);
+  assertHeader(version, 'content-type', 'text/plain; charset=utf-8', `${label} /version`);
+  const versionText = await version.text();
+  assert(versionText.includes('ultimate-tic-tac-toe'), `${label} /version omitted app name`);
+  assertSecurityHeaders(version, `${label} /version`);
+
+  const home = await fetch(url);
+  assert(home.status === 200, `${label} / returned ${home.status}`);
+  assertSecurityHeaders(home, `${label} /`);
+  assert((await home.text()).includes('id=game'), `${label} / did not render the game`);
+}
+
+async function smokeHttpBackend(serverName) {
+  const backendPort = await findOpenPort();
+  const backendBaseUrl = `http://127.0.0.1:${backendPort}/`;
+  const { server, logs } = startServer(backendPort, { SERVER: serverName });
+
+  try {
+    await waitForUrl(backendBaseUrl);
+    await assertOperationalEndpoints(backendBaseUrl, `${serverName} backend`);
+  } catch (error) {
+    if (logs.length > 0) {
+      console.error(`Recent ${serverName} server output:`);
+      console.error(logs.join('').trim());
+    }
+    throw error;
+  } finally {
+    await stopServer(server);
   }
 }
 
@@ -234,7 +309,7 @@ async function assertVisibleGame(page, label) {
   assert(gameBox, `${label} did not render #game`);
   assert(gameBox.width > 200 && gameBox.height > 200, `${label} rendered a tiny game shell`);
 
-  const screenshot = await page.screenshot({ fullPage: false });
+  const screenshot = await page.screenshot(screenshotOptions);
   assert(screenshot.length > 15000, `${label} screenshot looks unexpectedly small`);
 }
 
@@ -373,7 +448,7 @@ function screenshotDiff(actualBuffer, expectedBuffer) {
 }
 
 async function assertScreenshotBaseline(page, fileName, label) {
-  const screenshot = await page.screenshot({ fullPage: false });
+  const screenshot = await page.screenshot(screenshotOptions);
   const screenshotPath = path.join(screenshotDir, fileName);
 
   if (updateScreenshots) {
@@ -538,6 +613,65 @@ async function assertAccessibilityStructure(page, label) {
   assert(problems.length === 0, `${label} accessibility structure issues:\n${problems.join('\n')}`);
 }
 
+function axRole(node) {
+  return node.role?.value || '';
+}
+
+function axName(node) {
+  return node.name?.value || '';
+}
+
+function expectedNameLabel(expectedName) {
+  return expectedName instanceof RegExp ? expectedName.toString() : JSON.stringify(expectedName);
+}
+
+function axNameMatches(actualName, expectedName) {
+  if (expectedName instanceof RegExp) {
+    return expectedName.test(actualName);
+  }
+
+  return actualName === expectedName;
+}
+
+async function accessibilityTree(page) {
+  const session = await page.context().newCDPSession(page);
+  try {
+    const { nodes } = await session.send('Accessibility.getFullAXTree');
+    return nodes.filter((node) => !node.ignored);
+  } finally {
+    await session.detach();
+  }
+}
+
+function assertAxNode(nodes, role, expectedName, label) {
+  const found = nodes.some((node) =>
+    axRole(node) === role && axNameMatches(axName(node), expectedName));
+  assert(
+    found,
+    `${label} accessibility tree is missing ${role} named ${expectedNameLabel(expectedName)}`,
+  );
+}
+
+async function assertAccessibilityTree(page, label, expectedNodes) {
+  const nodes = await accessibilityTree(page);
+  const root = nodes.find((node) => axRole(node) === 'RootWebArea');
+  assert(root && axName(root).trim(), `${label} accessibility tree has no named root web area`);
+
+  const interactiveRoles = new Set(['button', 'checkbox', 'combobox', 'dialog', 'link', 'radio', 'textbox']);
+  const unnamedInteractive = nodes
+    .filter((node) => interactiveRoles.has(axRole(node)) && !axName(node).trim())
+    .map((node) => axRole(node))
+    .slice(0, 5);
+  assert(
+    unnamedInteractive.length === 0,
+    `${label} accessibility tree has unnamed interactive roles: ${unnamedInteractive.join(', ')}`,
+  );
+
+  for (const [role, expectedName] of expectedNodes) {
+    assertAxNode(nodes, role, expectedName, label);
+  }
+}
+
 async function assertKeyboardStartupFlow(page, label) {
   async function assertFocused(selector, description) {
     const matched = await page.evaluate((focusSelector) =>
@@ -568,6 +702,10 @@ async function assertKeyboardStartupFlow(page, label) {
   await page.keyboard.press('ArrowRight');
   await assertChecked('input[name="opponent"][value="easy"]', 'easy opponent option');
   await page.keyboard.press('ArrowRight');
+  await assertChecked('input[name="opponent"][value="normal"]', 'normal opponent option');
+  await page.keyboard.press('ArrowRight');
+  await assertChecked('input[name="opponent"][value="hard"]', 'hard opponent option');
+  await page.keyboard.press('ArrowLeft');
   await assertChecked('input[name="opponent"][value="normal"]', 'normal opponent option');
   await page.keyboard.press('ArrowLeft');
   await assertChecked('input[name="opponent"][value="easy"]', 'easy opponent option');
@@ -675,9 +813,25 @@ async function smokeViewport(browser, viewport) {
   await waitForHtmx(page);
   await waitForText(page, 'X to move');
   assert((await page.locator('.cell-button').count()) === 81, `${viewport.name} did not render 81 playable cells`);
-  assert((await page.locator('.opponent-choice').count()) === 3, `${viewport.name} did not render opponent choices`);
+  const opponentChoiceCount = await page.locator('.opponent-choice').count();
+  assert(opponentChoiceCount === 4, `${viewport.name} rendered ${opponentChoiceCount} opponent choices instead of 4`);
   await assertAccessibleControls(page, viewport.name);
   await assertAccessibilityStructure(page, viewport.name);
+  await assertAccessibilityTree(page, viewport.name, [
+    ['heading', 'Ultimate Tic Tac Toe'],
+    ['button', 'Start a new game'],
+    ['button', 'Start'],
+    ['textbox', 'X player name'],
+    ['textbox', 'O player name'],
+    ['radio', 'Human'],
+    ['radio', 'Easy'],
+    ['radio', 'Normal'],
+    ['radio', 'Hard'],
+    ['radio', 'X'],
+    ['radio', 'O'],
+    ['link', 'Legal notices'],
+    ['button', 'Play X in board 1 cell 1'],
+  ]);
   await assertKeyboardStartupFlow(page, viewport.name);
   await assertStartupNameFields(page, viewport.name);
   await assertVisibleGame(page, viewport.name);
@@ -693,6 +847,12 @@ async function smokeViewport(browser, viewport) {
   await waitForText(page, 'Bea to move');
   await assertAccessibleControls(page, `${viewport.name} after settings`);
   await assertAccessibilityStructure(page, `${viewport.name} after settings`);
+  await assertAccessibilityTree(page, `${viewport.name} after settings`, [
+    ['heading', 'Ultimate Tic Tac Toe'],
+    ['button', 'Start a new game'],
+    ['StaticText', 'Bea to move'],
+    ['button', 'Play Bea in board 1 cell 1'],
+  ]);
   const beforeFirstMoveLayout = await gameLayoutSnapshot(page);
 
   await page.click('.cell-button');
@@ -700,6 +860,11 @@ async function smokeViewport(browser, viewport) {
   assert((await page.locator('.mark').count()) === 1, `${viewport.name} did not render the first mark`);
   assert((await page.locator('.cell-button').count()) === 8, `${viewport.name} did not target the next board`);
   await assertAccessibilityStructure(page, `${viewport.name} after move`);
+  await assertAccessibilityTree(page, `${viewport.name} after move`, [
+    ['heading', 'Ultimate Tic Tac Toe'],
+    ['StaticText', 'Ada to move'],
+    ['button', 'Play Ada in board 1 cell 2'],
+  ]);
   assertFirstMoveLayoutStable(
     beforeFirstMoveLayout,
     await gameLayoutSnapshot(page),
@@ -738,12 +903,24 @@ async function smokeLegalNotices(browser, viewport) {
   assert((await page.locator('.legal-shell a[rel="license"]').count()) === 1, `${label} did not render a license link`);
   assert((await page.locator('#site-footer a[href="/legal"]').count()) === 1, `${label} did not render the footer legal link`);
   await assertAccessibilityStructure(page, label);
+  await assertAccessibilityTree(page, label, [
+    ['heading', 'Legal Notices'],
+    ['heading', 'License'],
+    ['link', 'the project repository'],
+    ['link', 'LICENSE'],
+    ['link', 'Back to game'],
+  ]);
   await assertNoHorizontalOverflow(page, label);
 
   await page.click('.legal-shell a[href="/"]');
   await page.waitForURL(baseUrl, { timeout: timeoutMs });
   await page.waitForSelector('#game', { timeout: timeoutMs });
   await waitForText(page, 'X to move');
+  await assertAccessibilityTree(page, `${label} return`, [
+    ['heading', 'Ultimate Tic Tac Toe'],
+    ['button', 'Start'],
+    ['button', 'Play X in board 1 cell 1'],
+  ]);
   await assertNoHorizontalOverflow(page, `${label} return`);
 
   await context.close();
@@ -779,6 +956,12 @@ async function smokeComputerOpponent(browser) {
   assert((await page.locator('.cell-button').count()) === 9, 'computer-start flow did not target the center board');
   await assertAccessibleControls(page, 'computer-start flow');
   await assertAccessibilityStructure(page, 'computer-start flow');
+  await assertAccessibilityTree(page, 'computer-start flow', [
+    ['heading', 'Ultimate Tic Tac Toe'],
+    ['StaticText', 'Ada to move'],
+    ['StaticText', 'Normal CPU'],
+    ['button', /Play Ada in board 5 cell \d/],
+  ]);
   await assertNoHorizontalOverflow(page, 'computer-start flow');
 
   await playMove(page, 4, 4, 2);
@@ -788,6 +971,12 @@ async function smokeComputerOpponent(browser) {
   assert((await page.locator('.mark.mark-o').count()) === 2, 'computer reply did not render as O');
   await assertAccessibleControls(page, 'computer reply flow');
   await assertAccessibilityStructure(page, 'computer reply flow');
+  await assertAccessibilityTree(page, 'computer reply flow', [
+    ['heading', 'Ultimate Tic Tac Toe'],
+    ['StaticText', 'Ada to move'],
+    ['StaticText', 'Normal CPU'],
+    ['button', /Play Ada in board \d cell \d/],
+  ]);
   await assertNoHorizontalOverflow(page, 'computer reply flow');
 
   await context.close();
@@ -822,10 +1011,53 @@ async function smokeEasyComputerOpponent(browser) {
   assert((await page.locator('.cell-button').count()) === 9, 'easy flow did not route play to the top board');
   await assertAccessibleControls(page, 'easy computer flow');
   await assertAccessibilityStructure(page, 'easy computer flow');
+  await assertAccessibilityTree(page, 'easy computer flow', [
+    ['heading', 'Ultimate Tic Tac Toe'],
+    ['StaticText', 'Ada to move'],
+    ['StaticText', 'Easy CPU'],
+    ['button', /Play Ada in board \d cell \d/],
+  ]);
   await assertNoHorizontalOverflow(page, 'easy computer flow');
 
   await context.close();
   assert(failures.length === 0, `easy computer browser failures:\n${failures.join('\n')}`);
+}
+
+async function smokeHardComputerOpponent(browser) {
+  const context = await browser.newContext({
+    viewport: { width: 1280, height: 900 },
+    deviceScaleFactor: 1,
+  });
+  const page = await context.newPage();
+  const failures = [];
+  captureBrowserFailures(page, failures);
+
+  await page.goto(baseUrl, { waitUntil: 'commit' });
+  await page.waitForSelector('#game', { timeout: timeoutMs });
+  await waitForHtmx(page);
+
+  await page.fill('input[name="player-x"]', 'Ada');
+  await page.fill('input[name="player-o"]', 'CPU');
+  await page.check('input[name="opponent"][value="hard"]', { force: true });
+  await page.check('input[name="first-player"][value="o"]', { force: true });
+  await page.click('.players-button');
+
+  await waitForText(page, 'Ada to move');
+  assert((await page.locator('.chip-kind').innerText()) === 'Hard CPU', 'hard computer player was not labeled with difficulty');
+  assert((await page.locator('.mark.mark-o').count()) === 1, 'hard flow did not place the opening O move');
+  assert((await page.locator('.cell-button').count()) > 0, 'hard flow did not leave a playable target');
+  await assertAccessibleControls(page, 'hard computer flow');
+  await assertAccessibilityStructure(page, 'hard computer flow');
+  await assertAccessibilityTree(page, 'hard computer flow', [
+    ['heading', 'Ultimate Tic Tac Toe'],
+    ['StaticText', 'Ada to move'],
+    ['StaticText', 'Hard CPU'],
+    ['button', /Play Ada in board \d cell \d/],
+  ]);
+  await assertNoHorizontalOverflow(page, 'hard computer flow');
+
+  await context.close();
+  assert(failures.length === 0, `hard computer browser failures:\n${failures.join('\n')}`);
 }
 
 async function smokeGameOverDialog(browser) {
@@ -855,6 +1087,11 @@ async function smokeGameOverDialog(browser) {
   assert((await page.locator('#game-over-detail').innerText()).includes('played X'), 'game-over dialog detail is missing');
   assert(await page.locator('.reset-button').evaluate((button) => button.tabIndex === -1), 'background reset button stayed in tab order');
   await assertAccessibilityStructure(page, 'game-over dialog');
+  await assertAccessibilityTree(page, 'game-over dialog', [
+    ['dialog', 'X wins!'],
+    ['heading', 'X wins!'],
+    ['button', 'New game'],
+  ]);
 
   await page.waitForFunction(() =>
     document.activeElement?.matches('.game-over-modal .dialog-button'),
@@ -876,6 +1113,11 @@ async function smokeGameOverDialog(browser) {
   assert((await page.locator('.game-over-modal').count()) === 0, 'game-over dialog did not close after new game');
   assert((await page.locator('.cell-button').count()) === 81, 'new game did not restore playable cells');
   await assertAccessibilityStructure(page, 'game-over reset flow');
+  await assertAccessibilityTree(page, 'game-over reset flow', [
+    ['heading', 'Ultimate Tic Tac Toe'],
+    ['button', 'Start'],
+    ['button', 'Play X in board 1 cell 1'],
+  ]);
   await assertNoHorizontalOverflow(page, 'game-over reset flow');
 
   await context.close();
@@ -893,6 +1135,7 @@ async function main() {
   let browser;
   try {
     await waitForServer();
+    await assertOperationalEndpoints(baseUrl, 'woo backend');
     browser = await chromium.launch({
       headless: true,
       executablePath,
@@ -905,9 +1148,11 @@ async function main() {
     }
     await smokeComputerOpponent(browser);
     await smokeEasyComputerOpponent(browser);
+    await smokeHardComputerOpponent(browser);
     await smokeGameOverDialog(browser);
+    await smokeHttpBackend('hunchentoot');
 
-    console.log(`Browser smoke passed for ${viewports.map((viewport) => viewport.name).join(', ')}, legal notices, computer opponents, and game-over dialog.`);
+    console.log(`Browser smoke passed for ${viewports.map((viewport) => viewport.name).join(', ')}, legal notices, computer opponents, game-over dialog, and backend probes.`);
   } catch (error) {
     if (logs.length > 0) {
       console.error('Recent server output:');
