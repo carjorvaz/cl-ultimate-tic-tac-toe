@@ -187,6 +187,12 @@ function assert(condition, message) {
   }
 }
 
+function isScreenshotCspNoise(text) {
+  return text.includes('Applying inline style violates')
+    && text.includes("style-src 'self'")
+    && text.includes('sha256-47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=');
+}
+
 function assertHeader(response, name, expected, label) {
   const actual = response.headers.get(name);
   assert(actual === expected, `${label} expected ${name}: ${expected}, got ${actual ?? '(missing)'}`);
@@ -257,7 +263,7 @@ function captureBrowserFailures(page, failures) {
   page.on('pageerror', (error) => failures.push(`page error: ${error.message}`));
   page.on('console', (message) => {
     const text = message.text();
-    if (message.type() === 'error') {
+    if (message.type() === 'error' && !isScreenshotCspNoise(text)) {
       failures.push(`console error: ${text}`);
     }
   });
