@@ -11,6 +11,7 @@ import { inflateSync } from 'node:zlib';
 const require = createRequire(import.meta.url);
 const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const timeoutMs = 30000;
+const backendStartupTimeoutMs = 60000;
 const updateScreenshots = process.env.UPDATE_SCREENSHOTS === '1';
 const screenshotDir = path.join(root, 'docs', 'assets', 'screenshots');
 const screenshotDiffPixelLimit = 0.004;
@@ -134,8 +135,8 @@ function startServer(serverPort = port, extraEnv = {}) {
   return { server, logs };
 }
 
-async function waitForUrl(url) {
-  const deadline = Date.now() + timeoutMs;
+async function waitForUrl(url, timeout = timeoutMs) {
+  const deadline = Date.now() + timeout;
   while (Date.now() < deadline) {
     try {
       const response = await fetch(url);
@@ -229,7 +230,7 @@ async function smokeHttpBackend(serverName) {
   const { server, logs } = startServer(backendPort, { SERVER: serverName });
 
   try {
-    await waitForUrl(backendBaseUrl);
+    await waitForUrl(backendBaseUrl, backendStartupTimeoutMs);
     await assertOperationalEndpoints(backendBaseUrl, `${serverName} backend`);
   } catch (error) {
     if (logs.length > 0) {
@@ -245,8 +246,9 @@ async function smokeHttpBackend(serverName) {
 function captureBrowserFailures(page, failures) {
   page.on('pageerror', (error) => failures.push(`page error: ${error.message}`));
   page.on('console', (message) => {
+    const text = message.text();
     if (message.type() === 'error') {
-      failures.push(`console error: ${message.text()}`);
+      failures.push(`console error: ${text}`);
     }
   });
   page.on('requestfailed', (request) => {
