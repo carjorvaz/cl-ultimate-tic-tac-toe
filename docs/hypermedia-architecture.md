@@ -27,6 +27,7 @@ fragment when JavaScript is available.
 The app treats HTML as its public application protocol:
 
 - `GET /` returns the full current-game page.
+- `GET /legal` returns the legal notices page.
 - `GET /games/current` returns the current game representation.
 - `POST /games` creates a fresh session game and may update player settings.
 - `POST /games/current/moves` applies a move to the current game.

@@ -21,6 +21,8 @@
 
 (defparameter *current-game-moves-path* "/games/current/moves")
 
+(defparameter *legal-notices-path* "/legal")
+
 (defparameter *html-content-type* "text/html; charset=utf-8")
 
 (defparameter *default-source-code-url*
@@ -212,37 +214,58 @@
     (:o "player-o-name")))
 
 (defun clean-player-name (value mark)
+  (declare (ignore mark))
   (let ((trimmed (and value
                       (string-trim '(#\Space #\Tab #\Return #\Linefeed)
                                    value))))
-    (if (and trimmed (plusp (length trimmed)))
-        (subseq trimmed 0 (min (length trimmed) +max-player-name-length+))
-        (player-label mark))))
+    (when (and trimmed (plusp (length trimmed)))
+      (subseq trimmed 0 (min (length trimmed) +max-player-name-length+)))))
 
 (defun player-name (mark)
   (or (current-session-value (player-name-key mark))
       (player-label mark)))
+
+(defun player-input-value (mark)
+  (or (current-session-value (player-name-key mark))
+      ""))
 
 (defun parse-player-mark (value)
   (cond
     ((string-equal value "x") :x)
     ((string-equal value "o") :o)))
 
-(defun parse-computer-player (value)
-  (when (string-equal value "computer")
-    :o))
+(defun parse-opponent-mode (value)
+  (cond
+    ((string-equal value "easy") :easy)
+    ((or (string-equal value "normal")
+         (string-equal value "computer"))
+     :normal)
+    (t :human)))
 
 (defun session-first-player ()
   (or (current-session-value :first-player)
       :x))
 
-(defun session-computer-player ()
-  (current-session-value :computer-player))
+(defun session-opponent-mode ()
+  (or (current-session-value :opponent-mode)
+      (when (current-session-value :computer-player)
+        :normal)
+      :human))
 
 (defun session-opponent-value ()
-  (if (session-computer-player)
-      "computer"
-      "human"))
+  (ecase (session-opponent-mode)
+    (:human "human")
+    (:easy "easy")
+    (:normal "normal")))
+
+(defun session-computer-player ()
+  (unless (eql :human (session-opponent-mode))
+    :o))
+
+(defun session-computer-label ()
+  (ecase (session-opponent-mode)
+    (:easy "Easy CPU")
+    (:normal "Normal CPU")))
 
 (defun remember-player-settings (player-x player-o first-player opponent)
   (setf (current-session-value :player-x-name)
@@ -251,8 +274,10 @@
         (clean-player-name player-o :o)
         (current-session-value :first-player)
         (or first-player (session-first-player))
+        (current-session-value :opponent-mode)
+        (parse-opponent-mode opponent)
         (current-session-value :computer-player)
-        (parse-computer-player opponent)))
+        nil))
 
 (defun header-in (name)
   (let ((headers (and *request-env*
@@ -308,7 +333,9 @@
 
 (defun maybe-play-computer-turn (game)
   (when (computer-turn-p game)
-    (play-best-tactical-move game))
+    (ecase (session-opponent-mode)
+      (:easy (play-first-legal-move game))
+      (:normal (play-best-tactical-move game))))
   game)
 
 (defun mark-asset (mark)
@@ -426,12 +453,15 @@
                                 (format nil "is-~(~A~)" (player-label mark)))
             :for (player-input-id mark)
       (:span :class "field-mark"
+             :aria-hidden "true"
         (player-label mark))
       (:input :id (player-input-id mark)
               :type "text"
               :name (player-parameter-name mark)
               :maxlength +max-player-name-length+
-              :value (player-name mark)
+              :value (player-input-value mark)
+              :placeholder "Name"
+              :aria-label (format nil "~A player name" (player-label mark))
               :autocomplete "off"))))
 
 (defun emit-first-player-option (mark)
@@ -466,7 +496,8 @@
         (:legend "Opponent")
         (:div :class "opponent-choices"
           (emit-opponent-option "human" "Human")
-          (emit-opponent-option "computer" "Computer")))
+          (emit-opponent-option "easy" "Easy")
+          (emit-opponent-option "normal" "Normal")))
       (:fieldset :class "first-player-field"
         (:legend "First")
         (:div :class "first-choices"
@@ -492,7 +523,7 @@
       (:strong (player-name mark))
       (when (eql mark (session-computer-player))
         (spinneret:with-html
-          (:span :class "chip-kind" "CPU"))))))
+          (:span :class "chip-kind" (session-computer-label)))))))
 
 (defun emit-player-summary (game)
   (spinneret:with-html
@@ -519,9 +550,8 @@
               (:img :class "turn-mark"
                     :src (mark-asset mark)
                     :alt "")))
-          (:strong (if (game-over-p game)
-                       (result-label game)
-                       (player-name (game-next-player game)))))))))
+          (:strong :aria-live "polite"
+            (result-label game)))))))
 
 (defun game-over-detail (game)
   (ecase (game-winner game)
@@ -562,10 +592,11 @@
                                   (when (game-over-p game) "is-over"))
       (:header :class "game-header"
         (:div :class "topbar"
-          (:div :class "title-block"
-            (:p :class "eyebrow" "Ultimate Tic Tac Toe")
-            (:h1 :aria-live "polite"
-              (result-label game)))
+          (:div :class "brand-lockup"
+            (:span :class "brand-mark"
+                   :aria-hidden "true")
+            (:div :class "title-block"
+              (:h1 "Ultimate Tic Tac Toe")))
           (with-game-post-form (*games-path* :class "reset-form")
             (:button :class "reset-button"
                      :type "submit"
@@ -597,30 +628,82 @@
   (spinneret:with-html-string
     (emit-game-fragment game :notice notice)))
 
-(defun emit-page-footer (game &key out-of-band)
-  (let ((background-tabindex (when (game-over-p game) -1)))
+(defun emit-footer-separator ()
+  (spinneret:with-html
+    (:span :class "footer-separator"
+           :aria-hidden "true"
+           "·")))
+
+(defun emit-page-footer (&key game out-of-band)
+  (let* ((background-hidden-p (and game (game-over-p game)))
+         (background-tabindex (when background-hidden-p -1)))
     (spinneret:with-html
       (:footer :id "site-footer"
                :class "site-footer"
-               :aria-hidden (when (game-over-p game) "true")
+               :aria-hidden (when background-hidden-p "true")
                :hx-swap-oob (when out-of-band "outerHTML")
         (:a :href (source-code-url)
             :tabindex background-tabindex
             "Source code")
-        (:span :class "footer-separator"
-               :aria-hidden "true"
-               "·")
+        (emit-footer-separator)
         (:a :href (repository-file-url "LICENSE")
             :rel "license"
             :tabindex background-tabindex
-            "AGPL-3.0-or-later")))))
+            "License")
+        (emit-footer-separator)
+        (:a :href *legal-notices-path*
+            :tabindex background-tabindex
+            "Legal notices")))))
 
 (defun render-htmx-response (game &key notice)
   (concatenate
    'string
    (render-game-fragment game :notice notice)
    (spinneret:with-html-string
-     (emit-page-footer game :out-of-band t))))
+     (emit-page-footer :game game :out-of-band t))))
+
+(defun render-legal-notices-page ()
+  (concatenate
+   'string
+   "<!doctype html>"
+   (spinneret:with-html-string
+     (:html :lang "en"
+       (:head
+         (:meta :charset "utf-8")
+         (:meta :name "viewport"
+                :content "width=device-width, initial-scale=1")
+         (:title "Legal Notices - Ultimate Tic Tac Toe")
+         (:link :rel "icon"
+                :href "/icon.svg"
+                :type "image/svg+xml")
+         (:link :rel "stylesheet"
+                :href "/style.css"))
+       (:body :class "legal-body"
+         (:main :class "legal-page"
+           (:article :class "legal-shell"
+             (:p :class "legal-kicker" "Ultimate Tic Tac Toe")
+             (:h1 "Legal Notices")
+             (:section :class "legal-section"
+               (:h2 "Copyright")
+               (:p "Copyright (C) Contributors."))
+             (:section :class "legal-section"
+               (:h2 "License")
+               (:p "This program is free software under the GNU Affero General Public License, version 3 or later. You may convey and modify it under that license."))
+             (:section :class "legal-section"
+               (:h2 "No Warranty")
+               (:p "This program is provided without warranty, unless a separate written warranty is provided."))
+             (:section :class "legal-section"
+               (:h2 "Source")
+               (:p "The corresponding source code is available from "
+                   (:a :href (source-code-url) "the project repository")
+                   ". The full license text is available in "
+                   (:a :href (repository-file-url "LICENSE")
+                       :rel "license"
+                       "LICENSE")
+                   "."))
+             (:p :class "legal-actions"
+               (:a :href "/" "Back to game")))
+           (emit-page-footer)))))))
 
 (defun render-page (game &key notice)
   (concatenate
@@ -645,7 +728,7 @@
        (:body
          (:main :class "app"
            (emit-game-fragment game :notice notice)
-           (emit-page-footer game)))))))
+           (emit-page-footer :game game)))))))
 
 (defun home-handler (params)
   (declare (ignore params))
@@ -661,6 +744,10 @@
        (if (htmx-request-p)
            (render-htmx-response game)
            (render-page game))))))
+
+(defun legal-notices-handler (params)
+  (declare (ignore params))
+  (html-response (render-legal-notices-page)))
 
 (defun move-handler (params)
   (if (csrf-parameter-valid-p params)
@@ -725,6 +812,7 @@
 (defun make-routes ()
   (let ((app (make-instance 'ningle:app)))
     (setf (ningle:route app "/" :method :get) #'home-handler
+          (ningle:route app *legal-notices-path* :method :get) #'legal-notices-handler
           (ningle:route app *current-game-path* :method :get) #'current-game-handler
           (ningle:route app *games-path* :method :post) #'games-handler
           (ningle:route app *current-game-moves-path* :method :post) #'move-handler

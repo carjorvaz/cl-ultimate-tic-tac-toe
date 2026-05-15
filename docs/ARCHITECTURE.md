@@ -16,7 +16,9 @@ system quickly.
 - `src/web.lisp` owns Clack responses, Lack session access, Ningle routes,
   Spinneret rendering, HTMX fragments, static asset serving, and request
   parsing.
-- `static/` contains CSS and SVG assets served directly by the web layer.
+- `assets/` contains source assets, including `assets/style.lass`.
+- `static/` contains generated CSS and SVG assets served directly by the web
+  layer.
 - `t/` contains FiveAM tests for rules, game behavior, and HTTP rendering.
 - `scripts/` contains runnable entry points for local app, test, validation, and
   browser-smoke workflows.
@@ -35,6 +37,8 @@ Rules:
   render HTML, read request parameters, or manage HTTP sessions.
 - `src/web.lisp` is the adapter boundary. Convert request strings with
   `parse-index` and `parse-player-mark` before calling game functions.
+- LASS is build-time asset tooling. Keep stylesheet generation in `scripts/`
+  and `assets/`; `src/web.lisp` should only link and serve the generated CSS.
 - Shared constants should live at the lowest layer that can own them without
   creating an upward dependency.
 
@@ -54,10 +58,13 @@ Rules:
 - `scripts/test.lisp` runs rules, game, and web behavior tests.
 - `scripts/validate-architecture.lisp` validates source layering, dependency
   declarations, and ASDF component order.
+- `scripts/build-assets.lisp` regenerates `static/style.css` from
+  `assets/style.lass`.
+- `scripts/validate-assets.lisp` verifies generated assets are current.
 - `scripts/validate-docs.lisp` validates the agent map, required knowledge docs,
   and Lisp SPDX headers.
 - `scripts/browser-smoke.mjs` drives a real browser through player setup,
   first-move HTMX swapping, computer-opponent play, game-over dialog focus,
-  responsive overflow checks, and screenshot refresh.
-- `nix flake check` runs the behavior tests, architecture validation, harness
-  validation, and browser smoke flow.
+  responsive overflow checks, screenshot regression, and screenshot refresh.
+- `nix flake check` runs asset validation, behavior tests, architecture
+  validation, harness validation, and browser smoke flow.

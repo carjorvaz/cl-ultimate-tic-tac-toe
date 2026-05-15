@@ -9,6 +9,7 @@ the app locally without hidden service dependencies.
 
 - Start the app with `direnv exec . sbcl --script scripts/run.lisp`.
 - The default URL is `http://127.0.0.1:4242/`.
+- The public deployment is `https://ultimate-tic-tac-toe.carjorvaz.com/`.
 - Set `PORT` to choose a different listener port.
 - `start` uses the Woo Clack backend by default. The app itself is still built
   as a Clack application.
@@ -29,10 +30,13 @@ the app locally without hidden service dependencies.
 - Use `scripts/test.lisp` for behavior validation.
 - Use `scripts/validate-architecture.lisp` for source-layer and dependency
   validation.
+- Use `scripts/build-assets.lisp` after editing `assets/style.lass`.
+- Use `scripts/validate-assets.lisp` after stylesheet-source or generated-CSS
+  edits.
 - Use `scripts/validate-docs.lisp` for repository-harness validation.
 - Use `scripts/browser-smoke.mjs` for browser-driven desktop/mobile rendering,
-  HTMX swap, computer-opponent play, CSRF-form, keyboard flow, modal focus, and
-  overflow validation.
+  HTMX swap, computer-opponent play, CSRF-form, accessibility structure,
+  keyboard flow, modal focus, and overflow validation.
 - Use `nix flake check` before treating a change as ready.
 - For larger UI work, still run the app manually when visual judgment matters;
   the smoke flow catches regressions but does not replace taste.

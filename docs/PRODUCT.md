@@ -4,7 +4,8 @@ Last reviewed: 2026-05-15
 
 The product is a local-session Ultimate Tic Tac Toe game optimized for quick
 play in a browser without client-side application state. It supports two human
-players, or one human playing X against a deterministic computer opponent as O.
+players, or one human playing X against an Easy or Normal deterministic
+computer opponent as O.
 
 ## Game Contract
 
@@ -16,9 +17,9 @@ players, or one human playing X against a deterministic computer opponent as O.
 - The global board is won by three closed local boards owned by the same player;
   it is a draw when all local boards are closed without a global winner.
 - Illegal moves do not advance the turn or mutate the board.
-- When O is set to Computer, the computer immediately applies a deterministic
-  tactical move after each human move and may start the game if O is selected
-  first.
+- When O is set to Easy or Normal, the computer immediately applies the chosen
+  deterministic strategy after each human move and may start the game if O is
+  selected first.
 
 ## Player Experience
 
@@ -31,7 +32,7 @@ players, or one human playing X against a deterministic computer opponent as O.
   the full page with a flash notice when needed.
 - Player names are session-local, capped at 24 characters, and fall back to
   "X" or "O".
-- The computer opponent is visibly labeled in the player summary.
+- The computer opponent difficulty is visibly labeled in the player summary.
 
 ## Acceptance Signals
 

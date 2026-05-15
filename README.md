@@ -6,8 +6,10 @@ Server-rendered Ultimate Tic Tac Toe in Common Lisp, using Clack, Lack,
 Ningle, Spinneret, a Woo backend by default, a Hunchentoot fallback, and
 vendored HTMX for small partial updates.
 
-It supports local two-player games and an optional deterministic computer
-opponent for O.
+It supports local two-player games and optional Easy or Normal deterministic
+computer opponents for O.
+
+Play the deployed app at <https://ultimate-tic-tac-toe.carjorvaz.com/>.
 
 ## Screenshots
 
@@ -39,7 +41,7 @@ direnv exec . sbcl --script scripts/test.lisp
 ```
 
 Run the browser smoke check for responsive layout, HTMX behavior, computer
-opponent play, and basic accessibility wiring with:
+opponent play, accessibility structure, and desktop screenshot regression with:
 
 ```sh
 direnv exec . node scripts/browser-smoke.mjs
@@ -51,10 +53,22 @@ or through the flake app:
 nix run .#browser-smoke
 ```
 
-Refresh the README screenshots from the smoke flow with:
+Refresh the README screenshot baselines from the smoke flow with:
 
 ```sh
 UPDATE_SCREENSHOTS=1 direnv exec . node scripts/browser-smoke.mjs
+```
+
+Regenerate CSS after editing `assets/style.lass` with:
+
+```sh
+direnv exec . sbcl --script scripts/build-assets.lisp
+```
+
+Verify generated assets are current with:
+
+```sh
+direnv exec . sbcl --script scripts/validate-assets.lisp
 ```
 
 Run the full repository check with:
@@ -75,6 +89,12 @@ Validate source boundaries and dependency declarations with:
 direnv exec . sbcl --script scripts/validate-architecture.lisp
 ```
 
+Validate generated assets with:
+
+```sh
+direnv exec . sbcl --script scripts/validate-assets.lisp
+```
+
 Validate the repository harness with:
 
 ```sh
@@ -93,6 +113,10 @@ idiomatic Common Lisp.
 
 HTMX is served from `static/htmx.min.js` so normal local and deployed runs do
 not depend on a CDN.
+
+CSS is authored as LASS in `assets/style.lass` and compiled to
+`static/style.css`. The web layer serves the generated CSS as a static asset;
+it does not generate styles during requests.
 
 ## Codex Disclosure
 

@@ -24,6 +24,12 @@
                              (:file "game")
                              (:file "web")))))
 
+(asdf:defsystem "ultimate-tic-tac-toe/assets"
+  :description "Asset build tooling for ultimate-tic-tac-toe."
+  :author "Contributors"
+  :license "AGPL-3.0-or-later"
+  :depends-on ("lass"))
+
 (asdf:defsystem "ultimate-tic-tac-toe/test"
   :description "Tests for ultimate-tic-tac-toe."
   :author "Contributors"

@@ -25,6 +25,7 @@
           lack-middleware-session
           ningle
           spinneret
+          lass
           clack-handler-woo
           hunchentoot
           clack-handler-hunchentoot
@@ -53,6 +54,7 @@
               export PLAYWRIGHT_CORE_PATH="${pkgs.playwright}/index.js"
               export PLAYWRIGHT_BROWSERS_PATH="${pkgs.playwright.browsers}"
               echo "Ultimate Tic Tac Toe: sbcl --script scripts/run.lisp"
+              echo "Build assets: sbcl --script scripts/build-assets.lisp"
               echo "Browser smoke: node scripts/browser-smoke.mjs"
             '';
           };
@@ -106,6 +108,7 @@
               export PLAYWRIGHT_CORE_PATH="${pkgs.playwright}/index.js"
               export PLAYWRIGHT_BROWSERS_PATH="${pkgs.playwright.browsers}"
               cd ${self}
+              sbcl --script scripts/validate-assets.lisp
               sbcl --script scripts/test.lisp
               sbcl --script scripts/validate-architecture.lisp
               sbcl --script scripts/validate-docs.lisp

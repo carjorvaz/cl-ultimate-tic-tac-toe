@@ -75,13 +75,19 @@
                  :start (1+ (position #\Space status-line))
                  :junk-allowed t))
 
+(defun read-nonempty-line (stream)
+  (loop for line = (read-line stream nil nil)
+        while line
+        for trimmed = (trim-crlf line)
+        unless (zerop (length trimmed))
+          return trimmed))
+
 (defun decode-chunked-body (body)
   (with-input-from-string (input body)
     (with-output-to-string (output)
       (loop
-        for size-line = (read-line input nil nil)
-        while size-line
-        for size-text = (trim-crlf size-line)
+        for size-text = (read-nonempty-line input)
+        while size-text
         for extension = (position #\; size-text)
         for chunk-size = (parse-integer size-text
                                         :end extension
@@ -117,8 +123,10 @@
       raw-body))
 
 (defun read-http-response (stream)
-  (let ((status-line (read-line stream))
+  (let ((status-line (read-nonempty-line stream))
         (headers nil))
+    (unless status-line
+      (error "HTTP response did not include a status line."))
     (loop
       for line = (trim-crlf (read-line stream))
       until (zerop (length line))
@@ -295,10 +303,25 @@
       (is (search "Source code" (response-body response)))
       (is (search (ultimate-tic-tac-toe.web::source-code-url)
                   (response-body response)))
-      (is (search "AGPL-3.0-or-later" (response-body response)))
+      (is (search "License" (response-body response)))
+      (is (search "href=\"/legal\"" (response-body response)))
       (is (not (search "cdn.jsdelivr" (response-body response))))
       (is (not (search "unpkg" (response-body response))))
       (is (not (search "hunchentoot-session" (response-body response)))))))
+
+(test legal-notices-page-renders-source-license-and-warranty
+  (with-test-server (port)
+    (let ((response (http-request port "GET" "/legal")))
+      (is (= 200 (response-status response)))
+      (is (string-starts-with-p "<!doctype html>" (response-body response)))
+      (is (search "Legal Notices" (response-body response)))
+      (is (search "Copyright (C) Contributors" (response-body response)))
+      (is (search "GNU Affero General Public License" (response-body response)))
+      (is (search "without warranty" (response-body response)))
+      (is (search (ultimate-tic-tac-toe.web::source-code-url)
+                  (response-body response)))
+      (is (search "rel=license" (response-body response)))
+      (is (search "Back to game" (response-body response))))))
 
 (test static-assets-are-served
   (with-test-server (port)
@@ -347,6 +370,7 @@
       (is (search "site-footer" (response-body move)))
       (is (search "hx-swap-oob" (response-body move)))
       (is (search "Source code" (response-body move)))
+      (is (search "href=\"/legal\"" (response-body move)))
       (is (not (search "<!doctype html>" (response-body move))))
       (is (not (search "hunchentoot-session" (response-body move)))))))
 
@@ -372,14 +396,14 @@
       (is (not (search "players-form" (response-body move))))
       (is (search "Ada to move" (response-body move))))))
 
-(test computer-opponent-replies-after-human-move
+(test normal-computer-opponent-replies-with-tactical-move
   (with-test-server (port)
     (let* ((home (http-request port "GET" "/"))
            (cookie (response-cookie home))
            (token (response-csrf-token home))
            (settings (http-request port "POST" "/games"
                                    :cookie cookie
-                                   :body (csrf-body token "player-x=Ada&player-o=CPU&first-player=x&opponent=computer")
+                                   :body (csrf-body token "player-x=Ada&player-o=CPU&first-player=x&opponent=normal")
                                    :headers '(("HX-Request" . "true"))))
            (move (http-request port "POST" "/games/current/moves"
                                :cookie cookie
@@ -393,16 +417,38 @@
       (is (search "Center board" (response-body move)))
       (is (= 1 (count-substrings "mark mark-x" (response-body move))))
       (is (= 1 (count-substrings "mark mark-o" (response-body move))))
-      (is (search "chip-kind" (response-body move))))))
+      (is (search "Normal CPU" (response-body move))))))
 
-(test computer-opponent-can-start
+(test easy-computer-opponent-replies-with-first-legal-move
   (with-test-server (port)
     (let* ((home (http-request port "GET" "/"))
            (cookie (response-cookie home))
            (token (response-csrf-token home))
            (settings (http-request port "POST" "/games"
                                    :cookie cookie
-                                   :body (csrf-body token "player-x=Ada&player-o=CPU&first-player=o&opponent=computer")
+                                   :body (csrf-body token "player-x=Ada&player-o=CPU&first-player=x&opponent=easy")
+                                   :headers '(("HX-Request" . "true"))))
+           (move (http-request port "POST" "/games/current/moves"
+                               :cookie cookie
+                               :body (csrf-body token "board=0&cell=0")
+                               :headers '(("HX-Request" . "true")))))
+      (is (= 200 (response-status settings)))
+      (is (search "Ada to move" (response-body settings)))
+      (is (= 200 (response-status move)))
+      (is (search "Ada to move" (response-body move)))
+      (is (search "Top board" (response-body move)))
+      (is (= 1 (count-substrings "mark mark-x" (response-body move))))
+      (is (= 1 (count-substrings "mark mark-o" (response-body move))))
+      (is (search "Easy CPU" (response-body move))))))
+
+(test normal-computer-opponent-can-start
+  (with-test-server (port)
+    (let* ((home (http-request port "GET" "/"))
+           (cookie (response-cookie home))
+           (token (response-csrf-token home))
+           (settings (http-request port "POST" "/games"
+                                   :cookie cookie
+                                   :body (csrf-body token "player-x=Ada&player-o=CPU&first-player=o&opponent=normal")
                                    :headers '(("HX-Request" . "true")))))
       (is (= 200 (response-status settings)))
       (is (search "Ada to move" (response-body settings)))
@@ -410,7 +456,8 @@
       (is (search "player-strip" (response-body settings)))
       (is (not (search "players-form" (response-body settings))))
       (is (= 0 (count-substrings "mark mark-x" (response-body settings))))
-      (is (= 1 (count-substrings "mark mark-o" (response-body settings)))))))
+      (is (= 1 (count-substrings "mark mark-o" (response-body settings))))
+      (is (search "Normal CPU" (response-body settings))))))
 
 (test htmx-illegal-move-returns-fragment-with-notice
   (with-test-server (port)

@@ -22,6 +22,18 @@
     20 0 20)
   "Tie-break scores for center, corner, and edge cells.")
 
+(defconstant +tactical-global-win-score+ 10000
+  "Score bonus for immediately winning the global game.")
+
+(defconstant +tactical-local-win-score+ 5000
+  "Score bonus for immediately winning a local board.")
+
+(defconstant +tactical-local-block-score+ 2500
+  "Score bonus for blocking an immediate local board win.")
+
+(defconstant +tactical-open-choice-score+ 800
+  "Score bonus for sending the opponent to an already completed board.")
+
 (defstruct (game (:constructor make-game))
   (cells (make-array (list +board-count+ +board-count+) :initial-element nil))
   (board-outcomes (make-array +board-count+ :initial-element nil))
@@ -158,14 +170,20 @@
   "Return true when the current player may play BOARD/CELL in GAME."
   (null (move-rejection-reason game board cell)))
 
+(defmacro do-legal-moves ((board cell game &optional result) &body body)
+  "Evaluate BODY with BOARD and CELL bound to each legal move in GAME."
+  (let ((game-var (gensym "GAME")))
+    `(let ((,game-var ,game))
+       (loop for ,board below +board-count+
+             do (loop for ,cell below +board-count+
+                      when (legal-move-p ,game-var ,board ,cell)
+                        do (progn ,@body)))
+       ,result)))
+
 (defun first-legal-move (game)
   "Return the first legal BOARD and CELL for GAME, or NIL/NIL when none exist."
-  (loop for board below +board-count+
-        do (loop for cell below +board-count+
-                 when (legal-move-p game board cell)
-                   do (return-from first-legal-move
-                        (values board cell))))
-  (values nil nil))
+  (do-legal-moves (board cell game (values nil nil))
+    (return-from first-legal-move (values board cell))))
 
 (defun local-board-outcome-with-mark (game board cell mark)
   (let ((previous-mark (aref (game-cells game) board cell)))
@@ -197,29 +215,31 @@
                                                             local-outcome))
          (opponent-local-outcome
            (local-board-outcome-with-mark game board cell opponent)))
-    (+ (if (eql global-outcome player) 10000 0)
-       (if (eql local-outcome player) 5000 0)
-       (if (eql opponent-local-outcome opponent) 2500 0)
-       (if (target-board-complete-after-move-p game board cell local-outcome)
-           800
-           0)
-       (aref *cell-position-scores* cell))))
+    (flet ((bonus (condition score)
+             (if condition score 0)))
+      (+ (bonus (eql global-outcome player) +tactical-global-win-score+)
+         (bonus (eql local-outcome player) +tactical-local-win-score+)
+         (bonus (eql opponent-local-outcome opponent)
+                +tactical-local-block-score+)
+         (bonus (target-board-complete-after-move-p game
+                                                    board
+                                                    cell
+                                                    local-outcome)
+                +tactical-open-choice-score+)
+         (aref *cell-position-scores* cell)))))
 
 (defun best-tactical-move (game)
   "Return a deterministic tactical BOARD and CELL for GAME, or NIL/NIL."
   (let ((best-board nil)
         (best-cell nil)
         (best-score nil))
-    (loop for board below +board-count+
-          do (loop for cell below +board-count+
-                   when (legal-move-p game board cell)
-                     do (let ((score (tactical-move-score game board cell)))
-                          (when (or (null best-score)
-                                    (> score best-score))
-                            (setf best-board board
-                                  best-cell cell
-                                  best-score score)))))
-    (values best-board best-cell)))
+    (do-legal-moves (board cell game (values best-board best-cell))
+      (let ((score (tactical-move-score game board cell)))
+        (when (or (null best-score)
+                  (> score best-score))
+          (setf best-board board
+                best-cell cell
+                best-score score))))))
 
 (defun update-outcomes-after-move (game board)
   (setf (aref (game-board-outcomes game) board)
