@@ -355,6 +355,46 @@
       (is (not (search "players-form" (response-body move))))
       (is (search "Ada to move" (response-body move))))))
 
+(test computer-opponent-replies-after-human-move
+  (with-test-server (port)
+    (let* ((home (http-request port "GET" "/"))
+           (cookie (response-cookie home))
+           (token (response-csrf-token home))
+           (settings (http-request port "POST" "/games"
+                                   :cookie cookie
+                                   :body (csrf-body token "player-x=Ada&player-o=CPU&first-player=x&opponent=computer")
+                                   :headers '(("HX-Request" . "true"))))
+           (move (http-request port "POST" "/games/current/moves"
+                               :cookie cookie
+                               :body (csrf-body token "board=0&cell=0")
+                               :headers '(("HX-Request" . "true")))))
+      (is (= 200 (response-status settings)))
+      (is (search "Ada to move" (response-body settings)))
+      (is (search "name=opponent" (response-body settings)))
+      (is (= 200 (response-status move)))
+      (is (search "Ada to move" (response-body move)))
+      (is (search "Top board" (response-body move)))
+      (is (= 1 (count-substrings "mark mark-x" (response-body move))))
+      (is (= 1 (count-substrings "mark mark-o" (response-body move))))
+      (is (search "chip-kind" (response-body move))))))
+
+(test computer-opponent-can-start
+  (with-test-server (port)
+    (let* ((home (http-request port "GET" "/"))
+           (cookie (response-cookie home))
+           (token (response-csrf-token home))
+           (settings (http-request port "POST" "/games"
+                                   :cookie cookie
+                                   :body (csrf-body token "player-x=Ada&player-o=CPU&first-player=o&opponent=computer")
+                                   :headers '(("HX-Request" . "true")))))
+      (is (= 200 (response-status settings)))
+      (is (search "Ada to move" (response-body settings)))
+      (is (search "Top left board" (response-body settings)))
+      (is (search "player-strip" (response-body settings)))
+      (is (not (search "players-form" (response-body settings))))
+      (is (= 0 (count-substrings "mark mark-x" (response-body settings))))
+      (is (= 1 (count-substrings "mark mark-o" (response-body settings)))))))
+
 (test htmx-illegal-move-returns-fragment-with-notice
   (with-test-server (port)
     (let* ((home (http-request port "GET" "/"))

@@ -152,6 +152,15 @@
   "Return true when the current player may play BOARD/CELL in GAME."
   (null (move-rejection-reason game board cell)))
 
+(defun first-legal-move (game)
+  "Return the first legal BOARD and CELL for GAME, or NIL/NIL when none exist."
+  (loop for board below +board-count+
+        do (loop for cell below +board-count+
+                 when (legal-move-p game board cell)
+                   do (return-from first-legal-move
+                        (values board cell))))
+  (values nil nil))
+
 (defun update-outcomes-after-move (game board)
   (setf (aref (game-board-outcomes game) board)
         (local-board-outcome game board))
@@ -177,6 +186,14 @@ place so it can live directly in a web session."
                                        cell)
             (game-next-player game) (other-player player))))
   (values game t))
+
+(defun play-first-legal-move (game)
+  "Apply GAME's first legal move for the current player."
+  (multiple-value-bind (board cell)
+      (first-legal-move game)
+    (if (and board cell)
+        (play-move game board cell)
+        (values game nil nil))))
 
 (defun game-over-p (game)
   "Return true when GAME has a winner or ended in a draw."

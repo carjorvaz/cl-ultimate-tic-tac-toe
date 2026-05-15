@@ -58,6 +58,30 @@
     (is (not (legal-move-p game 0 1)))
     (is (legal-move-p game 4 1))))
 
+(test first-legal-move-follows-target-board
+  (let ((game (make-game)))
+    (multiple-value-bind (board cell)
+        (first-legal-move game)
+      (is (= 0 board))
+      (is (= 0 cell)))
+    (accept-move game 0 4)
+    (multiple-value-bind (board cell)
+        (first-legal-move game)
+      (is (= 4 board))
+      (is (= 0 cell)))))
+
+(test play-first-legal-move-applies-deterministic-move
+  (let ((game (make-game)))
+    (multiple-value-bind (updated-game acceptedp rejection)
+        (play-first-legal-move game)
+      (is (eq updated-game game))
+      (is (not (null acceptedp)))
+      (is (null rejection))
+      (is (eql :x (mark-at game 0 0)))
+      (is (eql :o (game-next-player game)))
+      (is (= 0 (game-active-board game)))
+      (is (= 1 (game-move-count game))))))
+
 (test completed-target-board-opens-the-choice
   (let ((game (make-game)))
     (setf (aref (game-board-outcomes game) 4) :draw)

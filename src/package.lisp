@@ -40,8 +40,10 @@
    #:winning-line-positions
    #:mark-at
    #:legal-move-p
+   #:first-legal-move
    #:available-board-p
    #:play-move
+   #:play-first-legal-move
    #:game-over-p))
 
 (defpackage #:ultimate-tic-tac-toe.web
@@ -64,6 +66,7 @@
                 #:legal-move-p
                 #:available-board-p
                 #:play-move
+                #:play-first-legal-move
                 #:game-over-p)
   (:export
    #:start

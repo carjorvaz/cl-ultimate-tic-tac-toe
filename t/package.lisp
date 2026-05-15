@@ -21,5 +21,8 @@
                 #:board-winning-line
                 #:global-winning-line
                 #:winning-line-positions
+                #:mark-at
                 #:legal-move-p
-                #:play-move))
+                #:first-legal-move
+                #:play-move
+                #:play-first-legal-move))

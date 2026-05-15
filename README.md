@@ -4,6 +4,9 @@ Server-rendered Ultimate Tic Tac Toe in Common Lisp, using Clack, Lack,
 Ningle, Spinneret, a Hunchentoot backend, and vendored HTMX for small partial
 updates.
 
+It supports local two-player games and an optional deterministic computer
+opponent for O.
+
 ## Screenshots
 
 ![A fresh Ultimate Tic Tac Toe game with X to move.](docs/assets/screenshots/game-start.png)

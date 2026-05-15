@@ -230,7 +230,7 @@ h1 {
 
 .players-form {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
   align-items: end;
   gap: 10px;
   padding: 10px;
@@ -285,7 +285,8 @@ h1 {
   outline-offset: -3px;
 }
 
-.first-player-field {
+.first-player-field,
+.opponent-field {
   display: grid;
   gap: 4px;
   min-width: 96px;
@@ -294,7 +295,12 @@ h1 {
   padding: 0;
 }
 
-.first-player-field legend {
+.opponent-field {
+  min-width: 170px;
+}
+
+.first-player-field legend,
+.opponent-field legend {
   padding: 0;
   color: var(--muted);
   font-size: 0.72rem;
@@ -302,7 +308,8 @@ h1 {
   text-transform: uppercase;
 }
 
-.first-choices {
+.first-choices,
+.opponent-choices {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   overflow: hidden;
@@ -311,7 +318,8 @@ h1 {
   background: var(--surface-strong);
 }
 
-.first-choice {
+.first-choice,
+.opponent-choice {
   position: relative;
   display: grid;
   place-items: center;
@@ -322,29 +330,39 @@ h1 {
   font-weight: 950;
 }
 
-.first-choice + .first-choice {
+.opponent-choice {
+  min-width: 76px;
+  font-size: 0.82rem;
+}
+
+.first-choice + .first-choice,
+.opponent-choice + .opponent-choice {
   border-left: 1px solid rgba(31, 27, 23, 0.12);
 }
 
-.first-choice input {
+.first-choice input,
+.opponent-choice input {
   position: absolute;
   opacity: 0;
   pointer-events: none;
 }
 
-.first-choice span {
+.first-choice span,
+.opponent-choice span {
   display: grid;
   place-items: center;
   width: 100%;
   height: 100%;
 }
 
-.first-choice input:checked + span {
+.first-choice input:checked + span,
+.opponent-choice input:checked + span {
   background: var(--target);
   color: var(--ink);
 }
 
-.first-choice input:focus-visible + span {
+.first-choice input:focus-visible + span,
+.opponent-choice input:focus-visible + span {
   outline: 3px solid rgba(243, 188, 36, 0.42);
   outline-offset: -3px;
 }
@@ -359,7 +377,7 @@ h1 {
 
 .player-chip {
   display: inline-grid;
-  grid-template-columns: 30px minmax(0, 1fr);
+  grid-template-columns: 30px minmax(0, 1fr) auto;
   align-items: center;
   min-width: 0;
   flex: 1 1 0;
@@ -394,6 +412,17 @@ h1 {
   font-weight: 850;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.chip-kind {
+  margin-right: 8px;
+  border-radius: 5px;
+  padding: 2px 6px;
+  background: var(--target-soft);
+  color: var(--target-strong);
+  font-size: 0.68rem;
+  font-weight: 950;
+  line-height: 1;
 }
 
 .player-chip.is-current {
@@ -757,6 +786,7 @@ h1 {
 
   .player-field input,
   .first-choice,
+  .opponent-choice,
   .reset-button,
   .players-button {
     min-height: 32px;
@@ -805,7 +835,7 @@ h1 {
   }
 
   .players-form {
-    grid-template-columns: 1fr auto;
+    grid-template-columns: 1fr auto auto;
   }
 
   .player-fields {
@@ -835,7 +865,8 @@ h1 {
     grid-template-columns: 1fr;
   }
 
-  .first-player-field {
+  .first-player-field,
+  .opponent-field {
     min-width: 0;
   }
 

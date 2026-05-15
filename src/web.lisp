@@ -97,6 +97,12 @@
   (ironclad:byte-array-to-hex-string
    (ironclad:random-data 32)))
 
+(defun token-octets (token)
+  (when token
+    (handler-case
+        (ironclad:hex-string-to-byte-array token)
+      (error () nil))))
+
 (defun current-csrf-token ()
   (let ((session (and *request-env*
                       (getf *request-env* :lack.session))))
@@ -109,7 +115,13 @@
   (let ((expected-token (current-session-value :csrf-token)))
     (and expected-token
          submitted-token
-         (string= submitted-token expected-token))))
+         (= (length submitted-token) (length expected-token))
+         (let ((expected-octets (token-octets expected-token))
+               (submitted-octets (token-octets submitted-token)))
+           (and expected-octets
+                submitted-octets
+                (ironclad:constant-time-equal submitted-octets
+                                              expected-octets))))))
 
 (defun reject-csrf-token ()
   (clack-response 403
@@ -201,17 +213,31 @@
     ((string-equal value "x") :x)
     ((string-equal value "o") :o)))
 
+(defun parse-computer-player (value)
+  (when (string-equal value "computer")
+    :o))
+
 (defun session-first-player ()
   (or (current-session-value :first-player)
       :x))
 
-(defun remember-player-settings (player-x player-o first-player)
+(defun session-computer-player ()
+  (current-session-value :computer-player))
+
+(defun session-opponent-value ()
+  (if (session-computer-player)
+      "computer"
+      "human"))
+
+(defun remember-player-settings (player-x player-o first-player opponent)
   (setf (current-session-value :player-x-name)
         (clean-player-name player-x :x)
         (current-session-value :player-o-name)
         (clean-player-name player-o :o)
         (current-session-value :first-player)
-        (or first-player (session-first-player))))
+        (or first-player (session-first-player))
+        (current-session-value :computer-player)
+        (parse-computer-player opponent)))
 
 (defun header-in (name)
   (let ((headers (and *request-env*
@@ -259,6 +285,16 @@
      "That move belongs in the target board.")
     (:occupied-cell
      "That square is no longer available.")))
+
+(defun computer-turn-p (game)
+  (and (not (game-over-p game))
+       (eql (session-computer-player)
+            (game-next-player game))))
+
+(defun maybe-play-computer-turn (game)
+  (when (computer-turn-p game)
+    (play-first-legal-move game))
+  game)
 
 (defun mark-asset (mark)
   (ecase mark
@@ -394,12 +430,28 @@
                 :checked selected-p)
         (:span (player-label mark))))))
 
+(defun emit-opponent-option (value label)
+  (let ((selected-p (string= value (session-opponent-value))))
+    (spinneret:with-html
+      (:label :class (css-classes "opponent-choice"
+                                  (when selected-p "is-selected"))
+        (:input :type "radio"
+                :name "opponent"
+                :value value
+                :checked selected-p)
+        (:span label)))))
+
 (defun emit-player-settings ()
   (spinneret:with-html
     (with-game-post-form (*games-path* :class "players-form")
       (:div :class "player-fields"
         (emit-player-field :x)
         (emit-player-field :o))
+      (:fieldset :class "opponent-field"
+        (:legend "Opponent")
+        (:div :class "opponent-choices"
+          (emit-opponent-option "human" "Human")
+          (emit-opponent-option "computer" "Computer")))
       (:fieldset :class "first-player-field"
         (:legend "First")
         (:div :class "first-choices"
@@ -422,7 +474,10 @@
                                (when (player-summary-active-p game mark)
                                  "is-current"))
       (:span :class "chip-mark" (player-label mark))
-      (:strong (player-name mark)))))
+      (:strong (player-name mark))
+      (when (eql mark (session-computer-player))
+        (spinneret:with-html
+          (:span :class "chip-kind" "CPU"))))))
 
 (defun emit-player-summary (game)
   (spinneret:with-html
@@ -548,13 +603,13 @@
 (defun home-handler (params)
   (declare (ignore params))
   (with-current-game-locked ()
-    (let ((game (current-game)))
+    (let ((game (maybe-play-computer-turn (current-game))))
       (html-response (render-page game :notice (pop-notice))))))
 
 (defun current-game-handler (params)
   (declare (ignore params))
   (with-current-game-locked ()
-    (let ((game (current-game)))
+    (let ((game (maybe-play-computer-turn (current-game))))
       (html-response
        (if (htmx-request-p)
            (render-game-fragment game)
@@ -570,6 +625,8 @@
               (multiple-value-bind (updated-game acceptedp rejection)
                   (play-move game board-index cell-index)
                 (declare (ignore updated-game))
+                (when acceptedp
+                  (maybe-play-computer-turn game))
                 (respond-after-post
                  game
                  :notice (unless acceptedp
@@ -583,11 +640,15 @@
       (with-current-game-locked ()
         (let ((first-mark (parse-player-mark
                            (form-parameter params "first-player"))))
-          (when (form-submitted-p params "player-x" "player-o" "first-player")
+          (when (form-submitted-p params "player-x" "player-o" "first-player"
+                                  "opponent")
             (remember-player-settings (form-parameter params "player-x")
                                       (form-parameter params "player-o")
-                                      first-mark))
-          (respond-after-post (replace-current-game :first-player first-mark))))
+                                      first-mark
+                                      (form-parameter params "opponent")))
+          (respond-after-post
+           (maybe-play-computer-turn
+            (replace-current-game :first-player first-mark)))))
       (reject-csrf-token)))
 
 (defun style-handler (params)
