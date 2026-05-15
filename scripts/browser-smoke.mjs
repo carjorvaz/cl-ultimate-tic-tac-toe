@@ -222,6 +222,7 @@ async function smokeViewport(browser, viewport) {
   await page.waitForSelector('#game', { timeout: timeoutMs });
   await waitForText(page, 'X to move');
   assert((await page.locator('.cell-button').count()) === 81, `${viewport.name} did not render 81 playable cells`);
+  assert((await page.locator('.opponent-choice').count()) === 2, `${viewport.name} did not render opponent choices`);
   await assertAccessibleControls(page, viewport.name);
   await assertVisibleGame(page, viewport.name);
   await assertNoHorizontalOverflow(page, viewport.name);
