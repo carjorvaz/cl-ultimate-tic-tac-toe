@@ -353,7 +353,7 @@
 (defun executable-javascript-text (source)
   (let ((masked (copy-seq source)))
     (loop with length = (length source)
-          for index = 0
+          for index = 0 then index
           while (< index length)
           do (let ((character (aref source index)))
                (setf index
@@ -384,6 +384,29 @@
             (line-number-at content position)
             marker
             reason))))
+
+(defun executable-javascript-marker-present-p (source marker)
+  (not (null (first-position marker (executable-javascript-text source)))))
+
+(defun validate-javascript-scanner-self-checks ()
+  (dolist (fixture '(("fetch(" nil "// fetch('/json') stays documentation-only
+const ok = true;")
+                     ("fetch(" nil "const text = \"fetch('/json')\";")
+                     ("fetch(" nil "const text = 'fetch(\\'/json\\')';")
+                     ("fetch(" nil "const text = `fetch('/json')`;")
+                     ("document.cookie" nil "/* document.cookie belongs to the HTTP boundary. */
+const ok = true;")
+                     ("fetch(" t "const response = fetch('/json');")
+                     ("XMLHttpRequest" t "const request = new XMLHttpRequest();")
+                     ("window.location" t "window.location = '/';")))
+    (destructuring-bind (marker expected source) fixture
+      (let ((actual (executable-javascript-marker-present-p source marker)))
+        (unless (eql actual expected)
+          (fail "JavaScript boundary scanner expected ~S presence for ~S in fixture ~S, got ~S."
+                expected
+                marker
+                source
+                actual))))))
 
 (defun validate-client-script-boundary ()
   (dolist (marker '(("fetch(" "client scripting must not add a JSON/RPC request layer")
@@ -487,6 +510,7 @@
   (validate-rules-boundary)
   (validate-game-boundary)
   (validate-web-boundary)
+  (validate-javascript-scanner-self-checks)
   (validate-client-script-boundary)
   (validate-dependencies)
   (validate-asdf-component-order)
