@@ -409,6 +409,12 @@ h1{
     font-weight: 800;
 }
 
+.player-field input::placeholder{
+    color: var(--muted);
+    font-weight: 750;
+    opacity: 0.78;
+}
+
 .player-field input:focus{
     outline: 3px solid rgba(243, 188, 36, 0.38);
     outline-offset: -3px;
@@ -508,6 +514,7 @@ h1{
     grid-template-columns: 30px minmax(0, 1fr) auto;
     align-items: center;
     min-width: 0;
+    min-height: 38px;
     flex: 1 1 0;
     overflow: hidden;
     border: 1px solid rgba(31, 27, 23, 0.14);
@@ -599,10 +606,6 @@ h1{
     padding: clamp(7px, 1.25svh, 11px);
     background: var(--table);
     box-shadow: 0 16px 40px var(--shadow), 0 4px 0 rgba(109, 91, 68, 0.18);
-}
-
-.game-shell.is-started .macro-board{
-    width: min(92vw, calc(100svh - 174px - var(--footer-space)), 704px);
 }
 
 .local-board{

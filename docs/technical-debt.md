@@ -9,7 +9,6 @@ focused patches.
 
 - Add a full accessibility audit, such as an axe-style check and a manual
   screen-reader pass.
-- Add pixel-diff visual regression checks for the refreshed screenshot flow.
 - Replace the string-based validation rules in
   `scripts/validate-architecture.lisp` with form-aware dependency checks if the
   source layout grows beyond a few Lisp files.
