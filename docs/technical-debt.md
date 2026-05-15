@@ -9,8 +9,8 @@ focused patches.
 
 - Add browser-driven UI validation for layout, keyboard flow, and screenshots.
 - Add an accessibility check for labels, focus order, and modal behavior.
-- Add a structural dependency check for the intended `rules -> game -> web`
-  layering.
+- Replace the string-based architecture validator with a form-aware dependency
+  check if the source layout grows beyond a few Lisp files.
 
 ## Gardening Rule
 

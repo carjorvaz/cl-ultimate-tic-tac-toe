@@ -13,6 +13,8 @@ visual and accessibility validation.
 - Pure rules: covered by `t/rules-tests.lisp`.
 - Mutable game state: covered by `t/game-tests.lisp`.
 - Fragment rendering and HTTP flows: covered by `t/web-tests.lisp`.
+- Source boundaries and dependency declarations: covered by
+  `scripts/validate-architecture.lisp`.
 - Repository harness docs: covered by `scripts/validate-docs.lisp`.
 - Manual browser behavior: expected for UI changes, not automated yet.
 
@@ -30,5 +32,5 @@ visual and accessibility validation.
 
 - No browser automation captures screenshots or checks responsive layout.
 - No accessibility audit runs in CI.
-- No structural linter enforces the `rules -> game -> web` dependency direction
-  beyond package review and tests.
+- The structural validator is string-based; it catches the intended boundary
+  drift but does not parse every Common Lisp form.

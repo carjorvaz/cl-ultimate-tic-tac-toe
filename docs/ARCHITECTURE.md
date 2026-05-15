@@ -51,6 +51,8 @@ Rules:
 ## Mechanical Guards
 
 - `scripts/test.lisp` runs rules, game, and web behavior tests.
+- `scripts/validate-architecture.lisp` validates source layering, direct
+  dependency declarations, and ASDF component order.
 - `scripts/validate-docs.lisp` validates the agent map, required knowledge docs,
   and Lisp SPDX headers.
 - `nix flake check` runs both the behavior tests and harness validation.

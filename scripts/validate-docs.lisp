@@ -31,6 +31,9 @@
 (defun contains-p (needle haystack)
   (not (null (search needle haystack :test #'char=))))
 
+(defun contains-ci-p (needle haystack)
+  (not (null (search needle haystack :test #'char-equal))))
+
 (defun line-count (string)
   (if (zerop (length string))
       0
@@ -59,6 +62,50 @@
     "docs/QUALITY.md"
     "docs/PLANS.md"
     "docs/technical-debt.md"))
+
+(defparameter *forbidden-package-dependencies*
+  '(("ultimate-tic-tac-toe.rules"
+     ("ultimate-tic-tac-toe.game"
+      "ultimate-tic-tac-toe.web"
+      "clack"
+      "lack"
+      "ningle"
+      "spinneret"
+      "hunchentoot"))
+    ("ultimate-tic-tac-toe.game"
+     ("ultimate-tic-tac-toe.web"
+      "clack"
+      "lack"
+      "ningle"
+      "spinneret"
+      "hunchentoot"))
+    ("ultimate-tic-tac-toe.web"
+     ("ultimate-tic-tac-toe.rules"))))
+
+(defparameter *required-package-dependencies*
+  '(("ultimate-tic-tac-toe.game" "ultimate-tic-tac-toe.rules")
+    ("ultimate-tic-tac-toe.web" "ultimate-tic-tac-toe.game")))
+
+(defparameter *forbidden-source-dependencies*
+  '(("src/rules.lisp"
+     ("ultimate-tic-tac-toe.game"
+      "ultimate-tic-tac-toe.web"
+      "clack:"
+      "lack:"
+      "ningle:"
+      "spinneret:"
+      "hunchentoot:"
+      "htmx"))
+    ("src/game.lisp"
+     ("ultimate-tic-tac-toe.web"
+      "clack:"
+      "lack:"
+      "ningle:"
+      "spinneret:"
+      "hunchentoot:"
+      "htmx"))
+    ("src/web.lisp"
+     ("ultimate-tic-tac-toe.rules:"))))
 
 (defun validate-file-exists (relative-path)
   (unless (probe-file (root-path relative-path))
@@ -114,11 +161,64 @@
                        "technical-debt.md"
                        "exec-plans/README.md")))
 
+(defun defpackage-block (content package-name)
+  (let* ((needle (format nil "(defpackage #:~A" package-name))
+         (start (search needle content :test #'char-equal)))
+    (when start
+      (let ((next (search "(defpackage" content
+                          :start2 (+ start (length needle))
+                          :test #'char-equal)))
+        (subseq content start (or next (length content)))))))
+
+(defun validate-package-layer-boundaries ()
+  (let ((content (read-project-file "src/package.lisp")))
+    (dolist (entry *forbidden-package-dependencies*)
+      (destructuring-bind (package-name forbidden-markers) entry
+        (let ((block (defpackage-block content package-name)))
+          (if block
+              (dolist (marker forbidden-markers)
+                (when (contains-ci-p marker block)
+                  (fail "Package ~A must not depend on ~A."
+                        package-name marker)))
+              (fail "src/package.lisp must define package ~A." package-name)))))
+    (dolist (entry *required-package-dependencies*)
+      (destructuring-bind (package-name required-marker) entry
+        (let ((block (defpackage-block content package-name)))
+          (when (and block (not (contains-ci-p required-marker block)))
+            (fail "Package ~A must depend on ~A."
+                  package-name required-marker)))))))
+
+(defun validate-source-layer-boundaries ()
+  (dolist (entry *forbidden-source-dependencies*)
+    (destructuring-bind (relative-path forbidden-markers) entry
+      (let ((content (read-project-file relative-path)))
+        (dolist (marker forbidden-markers)
+          (when (contains-ci-p marker content)
+            (fail "~A must not reference ~A; dependency direction is rules -> game -> web."
+                  relative-path marker)))))))
+
+(defun validate-asdf-component-order ()
+  (let* ((content (read-project-file "ultimate-tic-tac-toe.asd"))
+         (package-position (search "(:file \"package\")" content))
+         (rules-position (search "(:file \"rules\")" content))
+         (game-position (search "(:file \"game\")" content))
+         (web-position (search "(:file \"web\")" content)))
+    (if (and package-position rules-position game-position web-position)
+        (unless (< package-position rules-position game-position web-position)
+          (fail "ultimate-tic-tac-toe.asd must load src files as package, rules, game, web."))
+        (fail "ultimate-tic-tac-toe.asd must list package, rules, game, and web components."))))
+
+(defun validate-layer-boundaries ()
+  (validate-package-layer-boundaries)
+  (validate-source-layer-boundaries)
+  (validate-asdf-component-order))
+
 (defun main ()
   (validate-agent-map)
   (validate-required-docs)
   (validate-docs-readme-map)
   (validate-lisp-spdx-headers)
+  (validate-layer-boundaries)
   (if *errors*
       (progn
         (format t "~&Repository harness validation failed:~%")
