@@ -68,33 +68,42 @@
   (unless (probe-file (root-path relative-path))
     (fail "~A is required but missing." relative-path)))
 
+(defun call-with-project-file (relative-path function)
+  (validate-file-exists relative-path)
+  (when (probe-file (root-path relative-path))
+    (funcall function (read-project-file relative-path))))
+
+(defun validate-file-markers (relative-path markers control)
+  (call-with-project-file
+   relative-path
+   (lambda (content)
+     (dolist (marker markers)
+       (unless (contains-p marker content)
+         (fail control relative-path marker))))))
+
 (defun validate-required-docs ()
   (dolist (entry *required-docs*)
     (destructuring-bind (relative-path required-markers) entry
-      (validate-file-exists relative-path)
-      (when (probe-file (root-path relative-path))
-        (let ((content (read-project-file relative-path)))
-          (dolist (marker required-markers)
-            (unless (contains-p marker content)
-              (fail "~A must contain marker ~S." relative-path marker))))))))
+      (validate-file-markers relative-path
+                             required-markers
+                             "~A must contain marker ~S."))))
 
 (defun validate-link-map (relative-path links)
-  (validate-file-exists relative-path)
-  (when (probe-file (root-path relative-path))
-    (let ((content (read-project-file relative-path)))
-      (dolist (link links)
-        (unless (contains-p link content)
-          (fail "~A must point to ~A." relative-path link))))))
+  (validate-file-markers relative-path
+                         links
+                         "~A must point to ~A."))
 
 (defun validate-agent-map ()
-  (validate-file-exists "AGENTS.md")
-  (when (probe-file (root-path "AGENTS.md"))
-    (let ((content (read-project-file "AGENTS.md")))
-      (when (> (line-count content) 120)
-        (fail "AGENTS.md must stay at or below 120 lines."))
-      (dolist (marker '("## Start Here" "## Source Of Truth" "## Feedback Loop"))
-        (unless (contains-p marker content)
-          (fail "AGENTS.md must contain marker ~S." marker)))))
+  (call-with-project-file
+   "AGENTS.md"
+   (lambda (content)
+     (when (> (line-count content) 120)
+       (fail "AGENTS.md must stay at or below 120 lines."))))
+  (validate-file-markers "AGENTS.md"
+                         '("## Start Here"
+                           "## Source Of Truth"
+                           "## Feedback Loop")
+                         "~A must contain marker ~S.")
   (validate-link-map "AGENTS.md" *agent-map-links*))
 
 (defun validate-lisp-spdx-headers ()
