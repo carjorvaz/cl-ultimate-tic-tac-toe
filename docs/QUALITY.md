@@ -14,7 +14,7 @@ visual and accessibility validation.
 - Mutable game state: covered by `t/game-tests.lisp`.
 - Fragment rendering and HTTP flows: covered by `t/web-tests.lisp`.
 - Source boundaries and dependency declarations: covered by
-  `scripts/validate-architecture.lisp`.
+  `scripts/validate-docs.lisp`.
 - Repository harness docs: covered by `scripts/validate-docs.lisp`.
 - Manual browser behavior: expected for UI changes, not automated yet.
 

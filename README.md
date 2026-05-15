@@ -46,7 +46,6 @@ execution-plan guidance.
 Validate the repository harness with:
 
 ```sh
-nix develop -c sbcl --script scripts/validate-architecture.lisp
 nix develop -c sbcl --script scripts/validate-docs.lisp
 ```
 

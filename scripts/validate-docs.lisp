@@ -86,6 +86,36 @@
   '(("ultimate-tic-tac-toe.game" "ultimate-tic-tac-toe.rules")
     ("ultimate-tic-tac-toe.web" "ultimate-tic-tac-toe.game")))
 
+(defparameter *required-asdf-dependencies*
+  '("coalton"
+    "named-readtables"
+    "clack"
+    "lack"
+    "lack/middleware/session"
+    "ningle"
+    "spinneret"
+    "clack-handler-hunchentoot"
+    "hunchentoot"
+    "bordeaux-threads"
+    "ironclad"
+    "fiveam"
+    "usocket"))
+
+(defparameter *required-nix-dependencies*
+  '("coalton"
+    "named-readtables"
+    "clack"
+    "lack"
+    "lack-middleware-session"
+    "ningle"
+    "spinneret"
+    "clack-handler-hunchentoot"
+    "hunchentoot"
+    "bordeaux-threads"
+    "ironclad"
+    "fiveam"
+    "usocket"))
+
 (defparameter *forbidden-source-dependencies*
   '(("src/rules.lisp"
      ("ultimate-tic-tac-toe.game"
@@ -208,10 +238,30 @@
           (fail "ultimate-tic-tac-toe.asd must load src files as package, rules, game, web."))
         (fail "ultimate-tic-tac-toe.asd must list package, rules, game, and web components."))))
 
+(defun validate-asdf-dependency-declarations ()
+  (let ((content (read-project-file "ultimate-tic-tac-toe.asd")))
+    (dolist (dependency *required-asdf-dependencies*)
+      (unless (contains-ci-p (format nil "\"~A\"" dependency) content)
+        (fail "ultimate-tic-tac-toe.asd must declare dependency ~A."
+              dependency)))))
+
+(defun validate-nix-dependency-declarations ()
+  (let ((content (read-project-file "flake.nix")))
+    (dolist (dependency *required-nix-dependencies*)
+      (unless (contains-ci-p (format nil "~%          ~A~%" dependency)
+                             content)
+        (fail "flake.nix must include SBCL package ~A."
+              dependency)))))
+
+(defun validate-dependency-declarations ()
+  (validate-asdf-dependency-declarations)
+  (validate-nix-dependency-declarations))
+
 (defun validate-layer-boundaries ()
   (validate-package-layer-boundaries)
   (validate-source-layer-boundaries)
-  (validate-asdf-component-order))
+  (validate-asdf-component-order)
+  (validate-dependency-declarations))
 
 (defun main ()
   (validate-agent-map)
@@ -226,7 +276,7 @@
           (format t "- ~A~%" error))
         (uiop:quit 1))
       (progn
-        (format t "~&Repository harness validation passed.~%")
+        (format t "~&Repository harness and architecture validation passed.~%")
         (uiop:quit 0))))
 
 (main)
