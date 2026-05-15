@@ -38,12 +38,9 @@
 (defun load-reader-systems ()
   (dolist (system *reader-systems*)
     (asdf:load-system system))
-  (load (root-path "src/package.lisp") :verbose nil :print nil)
-  ;; Coalton source uses the SYM package as a type shorthand inside the
-  ;; Coalton readtable. The validator reads forms without loading the project,
-  ;; so provide the package name for the reader without importing behavior.
-  (unless (find-package "SYM")
-    (make-package "SYM" :use nil)))
+  ;; Load only package definitions so local nicknames and reader directives
+  ;; match the source files without compiling the whole application.
+  (load (root-path "src/package.lisp") :verbose nil :print nil))
 
 (defun in-package-form-p (form)
   (and (consp form)
