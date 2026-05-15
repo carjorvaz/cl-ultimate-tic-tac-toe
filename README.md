@@ -41,7 +41,8 @@ direnv exec . sbcl --script scripts/test.lisp
 ```
 
 Run the browser smoke check for responsive layout, HTMX behavior, computer
-opponent play, accessibility structure, and desktop screenshot regression with:
+opponent play, accessibility structure, and tolerant desktop screenshot
+regression with:
 
 ```sh
 direnv exec . node scripts/browser-smoke.mjs

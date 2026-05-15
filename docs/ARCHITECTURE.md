@@ -65,6 +65,7 @@ Rules:
   and Lisp SPDX headers.
 - `scripts/browser-smoke.mjs` drives a real browser through player setup,
   first-move HTMX swapping, computer-opponent play, game-over dialog focus,
-  responsive overflow checks, screenshot regression, and screenshot refresh.
+  responsive overflow checks, tolerant screenshot regression, and screenshot
+  refresh.
 - `nix flake check` runs asset validation, behavior tests, architecture
   validation, harness validation, and browser smoke flow.

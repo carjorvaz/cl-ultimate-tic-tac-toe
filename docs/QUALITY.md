@@ -6,8 +6,8 @@ Last reviewed: 2026-05-15
 
 A- for a compact app: domain behavior, HTTP flow, session handling, concurrent
 duplicate moves, source boundaries, docs, browser behavior, accessibility
-structure, and desktop screenshot regression are tested. The remaining gap is a
-deeper accessibility audit.
+structure, and tolerant desktop screenshot regression are tested. The remaining
+gap is a deeper accessibility audit.
 
 ## Verification Matrix
 
@@ -16,8 +16,8 @@ deeper accessibility audit.
 - Fragment rendering and HTTP flows: covered by `t/web-tests.lisp`.
 - Browser rendering, responsive overflow, visible controls, CSRF form presence,
   DOM accessibility structure, keyboard startup flow, computer-opponent play,
-  game-over modal focus behavior, desktop screenshot regression, and core HTMX
-  form flow: covered by `scripts/browser-smoke.mjs`.
+  game-over modal focus behavior, tolerant desktop screenshot regression, and
+  core HTMX form flow: covered by `scripts/browser-smoke.mjs`.
 - Generated CSS freshness: covered by `scripts/validate-assets.lisp`.
 - Source boundaries and dependency declarations: covered by
   `scripts/validate-architecture.lisp`.
@@ -41,7 +41,7 @@ deeper accessibility audit.
 - No full accessibility audit, such as axe-style rule checks or manual
   screen-reader coverage, runs in CI; the browser smoke does cover DOM
   accessibility integrity.
-- Screenshot regression is limited to the checked-in desktop start and
-  in-progress baselines.
+- Screenshot regression is a tolerant smoke comparison limited to the checked-in
+  desktop start and in-progress baselines.
 - The structural validator is string-based; it catches the intended boundary
   drift but does not parse every Common Lisp form.

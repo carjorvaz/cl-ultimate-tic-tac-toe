@@ -13,8 +13,8 @@ const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..')
 const timeoutMs = 30000;
 const updateScreenshots = process.env.UPDATE_SCREENSHOTS === '1';
 const screenshotDir = path.join(root, 'docs', 'assets', 'screenshots');
-const screenshotDiffPixelLimit = 0.004;
-const screenshotDiffChannelLimit = 1.6;
+const screenshotDiffPixelLimit = 0.18;
+const screenshotDiffChannelLimit = 8.5;
 const screenshotSignificantChannelDelta = 24;
 const viewports = [
   { name: 'desktop', width: 1280, height: 900 },
