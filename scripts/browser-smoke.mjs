@@ -615,6 +615,155 @@ async function assertAccessibilityStructure(page, label) {
   assert(problems.length === 0, `${label} accessibility structure issues:\n${problems.join('\n')}`);
 }
 
+async function assertColorContrast(page, label) {
+  const failures = await page.evaluate(() => {
+    const describe = (element) => {
+      const tag = element.tagName.toLowerCase();
+      const id = element.id ? `#${element.id}` : '';
+      const classText = typeof element.className === 'string' ? element.className : '';
+      const className = classText.trim().split(/\s+/).filter(Boolean).slice(0, 2).join('.');
+      return `${tag}${id}${className ? `.${className}` : ''}`;
+    };
+    const parseColor = (value) => {
+      const parseAlpha = (part) => {
+        if (part === undefined) {
+          return 1;
+        }
+
+        const trimmed = part.trim();
+        const alpha = trimmed.endsWith('%')
+          ? Number(trimmed.slice(0, -1)) / 100
+          : Number(trimmed);
+        return Number.isFinite(alpha) ? alpha : 1;
+      };
+      const parseRgbChannel = (part) => {
+        const trimmed = part.trim();
+        return trimmed.endsWith('%')
+          ? Number(trimmed.slice(0, -1)) * 2.55
+          : Number(trimmed);
+      };
+      const parseSrgbChannel = (part) => Number(part.trim()) * 255;
+      const fromChannels = (channels, channelParser) => {
+        if (channels.length < 3) {
+          return null;
+        }
+
+        const color = {
+          r: channelParser(channels[0]),
+          g: channelParser(channels[1]),
+          b: channelParser(channels[2]),
+          a: parseAlpha(channels[3]),
+        };
+        return [color.r, color.g, color.b, color.a].every(Number.isFinite) ? color : null;
+      };
+      const rgbMatch = value.match(/^rgba?\(([^)]+)\)$/);
+      if (rgbMatch) {
+        const body = rgbMatch[1].replace(/\s*\/\s*/, ' ').trim();
+        const channels = body.includes(',')
+          ? body.split(',').map((part) => part.trim())
+          : body.split(/\s+/);
+        return fromChannels(channels, parseRgbChannel);
+      }
+
+      const srgbMatch = value.match(/^color\(\s*srgb\s+([^)]+)\)$/);
+      if (srgbMatch) {
+        const channels = srgbMatch[1].replace(/\s*\/\s*/, ' ').trim().split(/\s+/);
+        return fromChannels(channels, parseSrgbChannel);
+      }
+
+      return null;
+    };
+    const blend = (foreground, background) => {
+      const alpha = foreground.a + background.a * (1 - foreground.a);
+      if (alpha === 0) {
+        return { r: 255, g: 255, b: 255, a: 1 };
+      }
+
+      return {
+        r: ((foreground.r * foreground.a) + (background.r * background.a * (1 - foreground.a))) / alpha,
+        g: ((foreground.g * foreground.a) + (background.g * background.a * (1 - foreground.a))) / alpha,
+        b: ((foreground.b * foreground.a) + (background.b * background.a * (1 - foreground.a))) / alpha,
+        a: alpha,
+      };
+    };
+    const luminanceChannel = (channel) => {
+      const value = channel / 255;
+      return value <= 0.03928
+        ? value / 12.92
+        : ((value + 0.055) / 1.055) ** 2.4;
+    };
+    const luminance = (color) =>
+      (0.2126 * luminanceChannel(color.r))
+      + (0.7152 * luminanceChannel(color.g))
+      + (0.0722 * luminanceChannel(color.b));
+    const contrastRatio = (foreground, background) => {
+      const foregroundLuminosity = luminance(foreground);
+      const backgroundLuminosity = luminance(background);
+      const lighter = Math.max(foregroundLuminosity, backgroundLuminosity);
+      const darker = Math.min(foregroundLuminosity, backgroundLuminosity);
+      return (lighter + 0.05) / (darker + 0.05);
+    };
+    const effectiveBackground = (element) => {
+      let color = { r: 255, g: 255, b: 255, a: 1 };
+      const ancestors = [];
+      for (let current = element; current; current = current.parentElement) {
+        ancestors.push(current);
+      }
+
+      for (const current of ancestors.reverse()) {
+        const background = parseColor(getComputedStyle(current).backgroundColor);
+        if (background && background.a > 0) {
+          color = blend(background, color);
+        }
+      }
+      return color;
+    };
+    const hasOwnVisibleText = (element) =>
+      [...element.childNodes].some((node) =>
+        node.nodeType === Node.TEXT_NODE && node.textContent.trim().length > 0);
+    const isVisible = (element) => {
+      const style = getComputedStyle(element);
+      return style.visibility !== 'hidden'
+        && style.display !== 'none'
+        && Number(style.opacity) > 0
+        && element.getClientRects().length > 0
+        && !element.closest('[aria-hidden="true"]');
+    };
+
+    return [...document.body.querySelectorAll('*')]
+      .filter((element) => isVisible(element) && hasOwnVisibleText(element))
+      .map((element) => {
+        const style = getComputedStyle(element);
+        const foreground = parseColor(style.color);
+        if (!foreground) {
+          return null;
+        }
+
+        const ratio = contrastRatio(blend(foreground, effectiveBackground(element)), effectiveBackground(element));
+        const fontSize = Number.parseFloat(style.fontSize);
+        const fontWeight = Number.parseInt(style.fontWeight, 10) || 400;
+        const largeText = fontSize >= 24 || (fontSize >= 18.66 && fontWeight >= 700);
+        const minimum = largeText ? 3 : 4.5;
+        if (ratio >= minimum) {
+          return null;
+        }
+
+        return `${describe(element)} "${element.textContent.trim().replace(/\s+/g, ' ').slice(0, 60)}" ${ratio.toFixed(2)}:1 < ${minimum}:1`;
+      })
+      .filter(Boolean)
+      .slice(0, 10);
+  });
+
+  assert(failures.length === 0, `${label} color contrast issues:\n${failures.join('\n')}`);
+}
+
+async function assertAccessibilityAudit(page, label, expectedNodes) {
+  await assertAccessibleControls(page, label);
+  await assertAccessibilityStructure(page, label);
+  await assertColorContrast(page, label);
+  await assertAccessibilityTree(page, label, expectedNodes);
+}
+
 function axRole(node) {
   return node.role?.value || '';
 }
@@ -817,9 +966,7 @@ async function smokeViewport(browser, viewport) {
   assert((await page.locator('.cell-button').count()) === 81, `${viewport.name} did not render 81 playable cells`);
   const opponentChoiceCount = await page.locator('.opponent-choice').count();
   assert(opponentChoiceCount === 4, `${viewport.name} rendered ${opponentChoiceCount} opponent choices instead of 4`);
-  await assertAccessibleControls(page, viewport.name);
-  await assertAccessibilityStructure(page, viewport.name);
-  await assertAccessibilityTree(page, viewport.name, [
+  await assertAccessibilityAudit(page, viewport.name, [
     ['heading', 'Ultimate Tic Tac Toe'],
     ['button', 'Start a new game'],
     ['button', 'Start'],
@@ -847,9 +994,7 @@ async function smokeViewport(browser, viewport) {
   await page.check('input[name="first-player"][value="o"]', { force: true });
   await page.click('.players-button');
   await waitForText(page, 'Bea to move');
-  await assertAccessibleControls(page, `${viewport.name} after settings`);
-  await assertAccessibilityStructure(page, `${viewport.name} after settings`);
-  await assertAccessibilityTree(page, `${viewport.name} after settings`, [
+  await assertAccessibilityAudit(page, `${viewport.name} after settings`, [
     ['heading', 'Ultimate Tic Tac Toe'],
     ['button', 'Start a new game'],
     ['StaticText', 'Bea to move'],
@@ -861,8 +1006,7 @@ async function smokeViewport(browser, viewport) {
   await waitForText(page, 'Ada to move');
   assert((await page.locator('.mark').count()) === 1, `${viewport.name} did not render the first mark`);
   assert((await page.locator('.cell-button').count()) === 8, `${viewport.name} did not target the next board`);
-  await assertAccessibilityStructure(page, `${viewport.name} after move`);
-  await assertAccessibilityTree(page, `${viewport.name} after move`, [
+  await assertAccessibilityAudit(page, `${viewport.name} after move`, [
     ['heading', 'Ultimate Tic Tac Toe'],
     ['StaticText', 'Ada to move'],
     ['button', 'Play Ada in board 1 cell 2'],
@@ -904,8 +1048,7 @@ async function smokeLegalNotices(browser, viewport) {
   assert((await page.locator('.legal-shell a[href="/"]').count()) === 1, `${label} did not render a back-to-game link`);
   assert((await page.locator('.legal-shell a[rel="license"]').count()) === 1, `${label} did not render a license link`);
   assert((await page.locator('#site-footer a[href="/legal"]').count()) === 1, `${label} did not render the footer legal link`);
-  await assertAccessibilityStructure(page, label);
-  await assertAccessibilityTree(page, label, [
+  await assertAccessibilityAudit(page, label, [
     ['heading', 'Legal Notices'],
     ['heading', 'License'],
     ['link', 'the project repository'],
@@ -918,7 +1061,7 @@ async function smokeLegalNotices(browser, viewport) {
   await page.waitForURL(baseUrl, { timeout: timeoutMs });
   await page.waitForSelector('#game', { timeout: timeoutMs });
   await waitForText(page, 'X to move');
-  await assertAccessibilityTree(page, `${label} return`, [
+  await assertAccessibilityAudit(page, `${label} return`, [
     ['heading', 'Ultimate Tic Tac Toe'],
     ['button', 'Start'],
     ['button', 'Play X in board 1 cell 1'],
@@ -956,9 +1099,7 @@ async function smokeComputerOpponent(browser) {
   assert((await page.locator('.mark').count()) === 1, 'computer-start flow did not place the opening move');
   assert((await page.locator('.mark.mark-o').count()) === 1, 'computer-start flow did not place O first');
   assert((await page.locator('.cell-button').count()) === 9, 'computer-start flow did not target the center board');
-  await assertAccessibleControls(page, 'computer-start flow');
-  await assertAccessibilityStructure(page, 'computer-start flow');
-  await assertAccessibilityTree(page, 'computer-start flow', [
+  await assertAccessibilityAudit(page, 'computer-start flow', [
     ['heading', 'Ultimate Tic Tac Toe'],
     ['StaticText', 'Ada to move'],
     ['StaticText', 'Normal CPU'],
@@ -971,9 +1112,7 @@ async function smokeComputerOpponent(browser) {
   assert((await page.locator('.mark').count()) === 3, 'computer opponent did not reply after the human move');
   assert((await page.locator('.mark.mark-x').count()) === 1, 'human move did not render as X');
   assert((await page.locator('.mark.mark-o').count()) === 2, 'computer reply did not render as O');
-  await assertAccessibleControls(page, 'computer reply flow');
-  await assertAccessibilityStructure(page, 'computer reply flow');
-  await assertAccessibilityTree(page, 'computer reply flow', [
+  await assertAccessibilityAudit(page, 'computer reply flow', [
     ['heading', 'Ultimate Tic Tac Toe'],
     ['StaticText', 'Ada to move'],
     ['StaticText', 'Normal CPU'],
@@ -1011,9 +1150,7 @@ async function smokeEasyComputerOpponent(browser) {
   assert((await page.locator('.mark.mark-x').count()) === 1, 'easy flow did not render the human X move');
   assert((await page.locator('.mark.mark-o').count()) === 1, 'easy flow did not render the computer O reply');
   assert((await page.locator('.cell-button').count()) === 9, 'easy flow did not route play to the top board');
-  await assertAccessibleControls(page, 'easy computer flow');
-  await assertAccessibilityStructure(page, 'easy computer flow');
-  await assertAccessibilityTree(page, 'easy computer flow', [
+  await assertAccessibilityAudit(page, 'easy computer flow', [
     ['heading', 'Ultimate Tic Tac Toe'],
     ['StaticText', 'Ada to move'],
     ['StaticText', 'Easy CPU'],
@@ -1048,9 +1185,7 @@ async function smokeHardComputerOpponent(browser) {
   assert((await page.locator('.chip-kind').innerText()) === 'Hard CPU', 'hard computer player was not labeled with difficulty');
   assert((await page.locator('.mark.mark-o').count()) === 1, 'hard flow did not place the opening O move');
   assert((await page.locator('.cell-button').count()) > 0, 'hard flow did not leave a playable target');
-  await assertAccessibleControls(page, 'hard computer flow');
-  await assertAccessibilityStructure(page, 'hard computer flow');
-  await assertAccessibilityTree(page, 'hard computer flow', [
+  await assertAccessibilityAudit(page, 'hard computer flow', [
     ['heading', 'Ultimate Tic Tac Toe'],
     ['StaticText', 'Ada to move'],
     ['StaticText', 'Hard CPU'],
@@ -1088,8 +1223,7 @@ async function smokeGameOverDialog(browser) {
   assert((await page.locator('#game-over-title').innerText()).includes('X wins!'), 'game-over dialog title is wrong');
   assert((await page.locator('#game-over-detail').innerText()).includes('played X'), 'game-over dialog detail is missing');
   assert(await page.locator('.reset-button').evaluate((button) => button.tabIndex === -1), 'background reset button stayed in tab order');
-  await assertAccessibilityStructure(page, 'game-over dialog');
-  await assertAccessibilityTree(page, 'game-over dialog', [
+  await assertAccessibilityAudit(page, 'game-over dialog', [
     ['dialog', 'X wins!'],
     ['heading', 'X wins!'],
     ['button', 'New game'],
@@ -1114,8 +1248,7 @@ async function smokeGameOverDialog(browser) {
   await waitForText(page, 'X to move');
   assert((await page.locator('.game-over-modal').count()) === 0, 'game-over dialog did not close after new game');
   assert((await page.locator('.cell-button').count()) === 81, 'new game did not restore playable cells');
-  await assertAccessibilityStructure(page, 'game-over reset flow');
-  await assertAccessibilityTree(page, 'game-over reset flow', [
+  await assertAccessibilityAudit(page, 'game-over reset flow', [
     ['heading', 'Ultimate Tic Tac Toe'],
     ['button', 'Start'],
     ['button', 'Play X in board 1 cell 1'],

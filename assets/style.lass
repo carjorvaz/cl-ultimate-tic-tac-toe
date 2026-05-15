@@ -16,12 +16,12 @@
   :--tile-line "rgba(58, 49, 38, 0.2)"
   :--ink "#1f1b17"
   :--muted "#6e655a"
-  :--x "#df3151"
+  :--x "#c81f42"
   :--x-soft "#ffe3ea"
-  :--o "#008c81"
+  :--o "#006f67"
   :--o-soft "#ddf7f2"
   :--target "#f3bc24"
-  :--target-strong "#b96d00"
+  :--target-strong "#9a5600"
   :--target-soft "#fff0b7"
   :--draw "#7767c9"
   :--draw-soft "#ece9ff"
@@ -382,6 +382,7 @@
   :place-items "center"
   :min-height "32px"
   :color "var(--surface-strong)"
+  :font-size "1.2rem"
   :font-weight "950")
 (".player-chip.is-x .chip-mark"
   :background "var(--x)")
@@ -401,7 +402,7 @@
   :border-radius "5px"
   :padding "2px 6px"
   :background "var(--target-soft)"
-  :color "var(--target-strong)"
+  :color "var(--ink)"
   :font-size "0.68rem"
   :font-weight "950"
   :line-height "1")

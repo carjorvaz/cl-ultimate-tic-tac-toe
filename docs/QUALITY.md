@@ -4,10 +4,11 @@ Last reviewed: 2026-05-15
 
 ## Current Grade
 
-A- for a compact app: domain behavior, HTTP flow, session handling, concurrent
+A for a compact app: domain behavior, HTTP flow, session handling, concurrent
 duplicate moves, source boundaries, docs, browser behavior, accessibility
-structure, browser accessibility-tree coverage, and desktop screenshot
-regression are tested. The remaining gap is a deeper accessibility audit.
+structure, browser accessibility-tree coverage, color contrast, and desktop
+screenshot regression are tested. The remaining accessibility gap is human
+screen-reader review.
 
 ## Verification Matrix
 
@@ -16,8 +17,9 @@ regression are tested. The remaining gap is a deeper accessibility audit.
 - Fragment rendering and HTTP flows: covered by `t/web-tests.lisp`.
 - Browser rendering, responsive overflow, visible controls, CSRF form presence,
   DOM accessibility structure, browser accessibility-tree names and roles,
-  keyboard startup flow, computer-opponent play, game-over modal focus behavior,
-  desktop screenshot regression, and core HTMX form flow: covered by
+  color contrast, keyboard startup flow, computer-opponent play, game-over
+  modal focus behavior, desktop screenshot regression, and core HTMX form flow:
+  covered by
   `scripts/browser-smoke.mjs`.
 - Generated CSS freshness: covered by `scripts/validate-assets.lisp`.
 - Source boundaries and dependency declarations: covered by
@@ -41,10 +43,10 @@ regression are tested. The remaining gap is a deeper accessibility audit.
 
 ## Known Gaps
 
-- No full accessibility audit, such as axe-style rule checks or manual
-  screen-reader coverage, runs in CI; the local browser smoke does cover DOM
-  accessibility integrity and Chromium accessibility-tree names and roles.
+- No manual screen-reader pass is tracked in CI; the local browser smoke covers
+  DOM accessibility integrity, Chromium accessibility-tree names and roles, and
+  computed color contrast.
 - Screenshot regression is limited to the checked-in desktop start and
   in-progress baselines.
-- The structural validator is string-based; it catches the intended boundary
-  drift but does not parse every Common Lisp form.
+- The client scripting boundary checks remain text-based because the client
+  script is JavaScript, not Lisp.

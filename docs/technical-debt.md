@@ -7,11 +7,8 @@ focused patches.
 
 ## Known Debt
 
-- Add a full accessibility audit, such as an axe-style check and a manual
-  screen-reader pass.
-- Replace the string-based validation rules in
-  `scripts/validate-architecture.lisp` with form-aware dependency checks if the
-  source layout grows beyond a few Lisp files.
+- Add a manual screen-reader pass to complement the automated DOM,
+  accessibility-tree, and color-contrast smoke coverage.
 
 ## Gardening Rule
 
