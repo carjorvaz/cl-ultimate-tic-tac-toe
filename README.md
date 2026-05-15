@@ -1,6 +1,6 @@
 # Ultimate Tic Tac Toe
 
-[![CI](https://github.com/carjorvaz/ultimate-tic-tac-toe/actions/workflows/ci.yml/badge.svg)](https://github.com/carjorvaz/ultimate-tic-tac-toe/actions/workflows/ci.yml)
+[![CI](https://github.com/carjorvaz/cl-ultimate-tic-tac-toe/actions/workflows/ci.yml/badge.svg)](https://github.com/carjorvaz/cl-ultimate-tic-tac-toe/actions/workflows/ci.yml)
 
 Server-rendered Ultimate Tic Tac Toe in Common Lisp, using Clack, Lack,
 Ningle, Spinneret, a Woo backend by default, a Hunchentoot fallback, and

@@ -32,7 +32,7 @@
 (defparameter *plain-text-content-type* "text/plain; charset=utf-8")
 
 (defparameter *default-source-code-url*
-  "https://github.com/carjorvaz/ultimate-tic-tac-toe")
+  "https://github.com/carjorvaz/cl-ultimate-tic-tac-toe")
 
 (defparameter *system-root*
   (asdf:system-source-directory :ultimate-tic-tac-toe))
