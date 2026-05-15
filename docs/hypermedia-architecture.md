@@ -44,3 +44,19 @@ representations.
 Browser assets are local: `GET /htmx.min.js` serves the vendored HTMX asset,
 and `GET /app.js` serves the app's progressive-enhancement script from
 `static/`.
+
+## Client Scripting Policy
+
+Browser scripting should stay hypermedia-friendly: no client-side game state,
+no JSON/RPC application API, no browser routing, and no network requests outside
+the normal form-driven HTML exchange. Small vanilla JavaScript is acceptable for
+browser-only affordances that HTML cannot provide by itself, such as trapping
+focus inside the game-over dialog after an htmx swap.
+
+Prefer keeping `static/app.js` tiny and boring over adding a Lisp-to-JavaScript
+build step. Parenscript would become worth considering only if client behavior
+grows enough to need shared Lisp macros, generated scripts, or repeated
+browser-side abstractions. If the goal is to remove the app script entirely,
+prefer a product change, such as replacing the modal with an inline
+server-rendered game-over panel, over reimplementing the same focus behavior in
+generated JavaScript.

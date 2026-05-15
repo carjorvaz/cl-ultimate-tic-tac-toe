@@ -26,7 +26,7 @@
 (defparameter *html-content-type* "text/html; charset=utf-8")
 
 (defparameter *default-source-code-url*
-  "https://github.com/carjorvaz/ultimate-tic-tac-toe")
+  "https://github.com/carjorvaz/cl-ultimate-tic-tac-toe")
 
 (defparameter *system-root*
   (asdf:system-source-directory :ultimate-tic-tac-toe))
@@ -47,6 +47,14 @@
     "Bottom left"
     "Bottom"
     "Bottom right"))
+
+(defparameter *static-assets*
+  '(("/style.css" "static/style.css" "text/css; charset=utf-8")
+    ("/htmx.min.js" "static/htmx.min.js" "application/javascript; charset=utf-8")
+    ("/app.js" "static/app.js" "application/javascript; charset=utf-8")
+    ("/icon.svg" "static/icon.svg" "image/svg+xml")
+    ("/x.svg" "static/x.svg" "image/svg+xml")
+    ("/o.svg" "static/o.svg" "image/svg+xml")))
 
 (defun css-classes (&rest names)
   (format nil "~{~A~^ ~}" (remove nil names)))
@@ -785,46 +793,39 @@
             (replace-current-game :first-player first-mark)))))
       (reject-csrf-token)))
 
-(defun style-handler (params)
-  (declare (ignore params))
-  (asset-response "static/style.css" "text/css; charset=utf-8"))
+(defun make-asset-handler (relative-path content-type)
+  (lambda (params)
+    (declare (ignore params))
+    (asset-response relative-path content-type)))
 
-(defun htmx-handler (params)
-  (declare (ignore params))
-  (asset-response "static/htmx.min.js" "application/javascript; charset=utf-8"))
+(defun install-route (app method path handler)
+  (setf (ningle:route app path :method method) handler)
+  app)
 
-(defun app-script-handler (params)
-  (declare (ignore params))
-  (asset-response "static/app.js" "application/javascript; charset=utf-8"))
+(defun install-routes (app routes)
+  (dolist (route routes app)
+    (destructuring-bind (method path handler) route
+      (install-route app method path handler))))
 
-(defun icon-handler (params)
-  (declare (ignore params))
-  (asset-response "static/icon.svg" "image/svg+xml"))
-
-(defun x-mark-handler (params)
-  (declare (ignore params))
-  (asset-response "static/x.svg" "image/svg+xml"))
-
-(defun o-mark-handler (params)
-  (declare (ignore params))
-  (asset-response "static/o.svg" "image/svg+xml"))
+(defun install-static-asset-routes (app)
+  (dolist (asset *static-assets* app)
+    (destructuring-bind (path relative-path content-type) asset
+      (install-route app :get path
+                     (make-asset-handler relative-path content-type)))))
 
 (defun make-routes ()
   (let ((app (make-instance 'ningle:app)))
-    (setf (ningle:route app "/" :method :get) #'home-handler
-          (ningle:route app *legal-notices-path* :method :get) #'legal-notices-handler
-          (ningle:route app *current-game-path* :method :get) #'current-game-handler
-          (ningle:route app *games-path* :method :post) #'games-handler
-          (ningle:route app *current-game-moves-path* :method :post) #'move-handler
-          (ningle:route app "/move" :method :post) #'move-handler
-          (ningle:route app "/players" :method :post) #'games-handler
-          (ningle:route app "/reset" :method :post) #'games-handler
-          (ningle:route app "/style.css" :method :get) #'style-handler
-          (ningle:route app "/htmx.min.js" :method :get) #'htmx-handler
-          (ningle:route app "/app.js" :method :get) #'app-script-handler
-          (ningle:route app "/icon.svg" :method :get) #'icon-handler
-          (ningle:route app "/x.svg" :method :get) #'x-mark-handler
-          (ningle:route app "/o.svg" :method :get) #'o-mark-handler)
+    (install-routes
+     app
+     (list (list :get "/" #'home-handler)
+           (list :get *legal-notices-path* #'legal-notices-handler)
+           (list :get *current-game-path* #'current-game-handler)
+           (list :post *games-path* #'games-handler)
+           (list :post *current-game-moves-path* #'move-handler)
+           (list :post "/move" #'move-handler)
+           (list :post "/players" #'games-handler)
+           (list :post "/reset" #'games-handler)))
+    (install-static-asset-routes app)
     app))
 
 (defun make-app ()

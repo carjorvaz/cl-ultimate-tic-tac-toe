@@ -36,8 +36,7 @@ the app locally without hidden service dependencies.
 - Use `scripts/validate-docs.lisp` for repository-harness validation.
 - Use `scripts/browser-smoke.mjs` for browser-driven desktop/mobile rendering,
   HTMX swap, computer-opponent play, CSRF-form, accessibility structure,
-  keyboard flow, modal focus, tolerant screenshot regression, and overflow
-  validation.
+  keyboard flow, modal focus, screenshot regression, and overflow validation.
 - Use `nix flake check` before treating a change as ready.
 - For larger UI work, still run the app manually when visual judgment matters;
   the smoke flow catches regressions but does not replace taste.
