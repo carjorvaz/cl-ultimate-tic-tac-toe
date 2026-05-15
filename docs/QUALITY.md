@@ -7,8 +7,8 @@ Last reviewed: 2026-05-15
 A for a compact app: domain behavior, HTTP flow, session handling, concurrent
 duplicate moves, source boundaries, docs, browser behavior, accessibility
 structure, browser accessibility-tree coverage, color contrast, and desktop
-screenshot regression are tested. The remaining accessibility gap is human
-screen-reader review.
+and mobile screenshot regression are tested. The remaining accessibility gap is
+human screen-reader review.
 
 ## Verification Matrix
 
@@ -18,8 +18,8 @@ screen-reader review.
 - Browser rendering, responsive overflow, visible controls, CSRF form presence,
   DOM accessibility structure, browser accessibility-tree names and roles,
   color contrast, keyboard startup flow, computer-opponent play, game-over
-  modal focus behavior, desktop screenshot regression, and core HTMX form flow:
-  covered by
+  modal focus behavior, desktop/mobile screenshot regression, and core HTMX
+  form flow: covered by
   `scripts/browser-smoke.mjs`.
 - Generated CSS freshness: covered by `scripts/validate-assets.lisp`.
 - Source boundaries and dependency declarations: covered by
@@ -49,7 +49,7 @@ screen-reader review.
   `docs/accessibility-review.md` to run and record one. The local browser smoke
   covers DOM accessibility integrity, Chromium accessibility-tree names and
   roles, and computed color contrast.
-- Screenshot regression is limited to the checked-in desktop start and
-  in-progress baselines.
+- Screenshot regression is limited to the checked-in start and in-progress
+  baselines for desktop and mobile viewports.
 - The client scripting boundary checks remain text-based because the client
   script is JavaScript, not Lisp.

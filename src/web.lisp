@@ -623,8 +623,20 @@
               (:img :class "turn-mark"
                     :src (mark-asset mark)
                     :alt "")))
-          (:strong :aria-live "polite"
-            (result-label game)))))))
+          (:strong (result-label game)))))))
+
+(defun status-announcement (game)
+  (format nil "~A Target: ~A."
+          (result-label game)
+          (target-label game)))
+
+(defun emit-status-announcement (game)
+  (spinneret:with-html
+    (:p :class "visually-hidden"
+        :role "status"
+        :aria-live "polite"
+        :aria-atomic "true"
+      (status-announcement game))))
 
 (defun game-over-detail (game)
   (ecase (game-winner game)
@@ -681,6 +693,7 @@
           (:div :class "target-card"
             (:span :class "status-label" "Target")
             (:strong (target-label game))))
+        (emit-status-announcement game)
         (if (zerop (game-move-count game))
             (emit-player-settings)
             (emit-player-summary game)))

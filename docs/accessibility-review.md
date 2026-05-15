@@ -46,3 +46,21 @@ Record the date, browser, screen reader, operating system, and any defects in
 the pull request or release note that used this runbook. If the pass finds a
 recurring issue, add or update an automated check where practical; otherwise
 record a focused item in `docs/technical-debt.md`.
+
+## Result Template
+
+Copy this block into the pull request, release note, or review record that used
+the runbook:
+
+```text
+Manual accessibility review:
+- Date:
+- Browser:
+- Screen reader:
+- Operating system:
+- Reviewer:
+- Result: pass / pass with follow-up / fail
+- Defects found:
+- Automated checks added or updated:
+- Technical-debt updates:
+```

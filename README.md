@@ -43,7 +43,8 @@ direnv exec . sbcl --script scripts/test.lisp
 
 Run the browser smoke check for responsive layout, HTMX behavior, computer
 opponent play, accessibility structure, browser accessibility-tree coverage,
-color contrast, backend health probes, and desktop screenshot regression with:
+color contrast, backend health probes, and desktop/mobile screenshot regression
+with:
 
 ```sh
 direnv exec . node scripts/browser-smoke.mjs
@@ -55,7 +56,7 @@ or through the flake app:
 nix run .#browser-smoke
 ```
 
-Refresh the README screenshot baselines from the smoke flow with:
+Refresh the checked-in screenshot baselines from the smoke flow with:
 
 ```sh
 UPDATE_SCREENSHOTS=1 direnv exec . node scripts/browser-smoke.mjs

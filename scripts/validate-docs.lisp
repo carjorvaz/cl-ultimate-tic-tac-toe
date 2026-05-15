@@ -42,7 +42,7 @@
 (defparameter *required-docs*
   '(("docs/README.md" ("Last reviewed:" "## Map" "## Maintenance Rules"))
     ("docs/ARCHITECTURE.md" ("Last reviewed:" "## Components" "## Boundaries" "## Mechanical Guards"))
-    ("docs/accessibility-review.md" ("Last reviewed:" "## Scope" "## Checklist" "## Recording Results"))
+    ("docs/accessibility-review.md" ("Last reviewed:" "## Scope" "## Checklist" "## Recording Results" "## Result Template"))
     ("docs/hypermedia-architecture.md" ("Last reviewed:" "## Stack" "## Contract"))
     ("docs/PRODUCT.md" ("Last reviewed:" "## Game Contract" "## Player Experience"))
     ("docs/RELIABILITY.md" ("Last reviewed:" "## Runtime" "## Feedback Loops"))

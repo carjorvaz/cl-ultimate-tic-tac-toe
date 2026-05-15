@@ -26,6 +26,16 @@ const viewports = [
   { name: 'desktop', width: 1280, height: 900 },
   { name: 'mobile', width: 390, height: 844 },
 ];
+const screenshotBaselines = {
+  desktop: {
+    start: 'game-start.png',
+    inProgress: 'game-in-progress.png',
+  },
+  mobile: {
+    start: 'game-start-mobile.png',
+    inProgress: 'game-in-progress-mobile.png',
+  },
+};
 const xGlobalWinMoves = [
   [0, 0], [0, 1], [1, 2], [2, 0], [0, 3], [3, 4],
   [4, 5], [5, 0], [0, 6], [6, 1], [1, 0], [4, 1],
@@ -764,6 +774,15 @@ async function assertAccessibilityAudit(page, label, expectedNodes) {
   await assertAccessibilityTree(page, label, expectedNodes);
 }
 
+async function assertLiveStatus(page, label, expectedText) {
+  const status = page.locator('.visually-hidden[role="status"]');
+  assert(await status.count() === 1, `${label} should render one hidden live status`);
+  const actualText = (await status.innerText()).trim();
+  assert(actualText === expectedText, `${label} live status was "${actualText}", expected "${expectedText}"`);
+  assert(await status.getAttribute('aria-live') === 'polite', `${label} live status should be polite`);
+  assert(await status.getAttribute('aria-atomic') === 'true', `${label} live status should be atomic`);
+}
+
 function axRole(node) {
   return node.role?.value || '';
 }
@@ -951,6 +970,7 @@ async function playMove(page, board, cell, moveNumber) {
 }
 
 async function smokeViewport(browser, viewport) {
+  const baselines = screenshotBaselines[viewport.name] ?? {};
   const context = await browser.newContext({
     viewport: { width: viewport.width, height: viewport.height },
     deviceScaleFactor: 1,
@@ -963,6 +983,7 @@ async function smokeViewport(browser, viewport) {
   await page.waitForSelector('#game', { timeout: timeoutMs });
   await waitForHtmx(page);
   await waitForText(page, 'X to move');
+  await assertLiveStatus(page, viewport.name, 'X to move Target: Any open board.');
   assert((await page.locator('.cell-button').count()) === 81, `${viewport.name} did not render 81 playable cells`);
   const opponentChoiceCount = await page.locator('.opponent-choice').count();
   assert(opponentChoiceCount === 4, `${viewport.name} rendered ${opponentChoiceCount} opponent choices instead of 4`);
@@ -985,8 +1006,8 @@ async function smokeViewport(browser, viewport) {
   await assertStartupNameFields(page, viewport.name);
   await assertVisibleGame(page, viewport.name);
   await assertNoHorizontalOverflow(page, viewport.name);
-  if (viewport.name === 'desktop') {
-    await assertScreenshotBaseline(page, 'game-start.png', 'desktop start');
+  if (baselines.start) {
+    await assertScreenshotBaseline(page, baselines.start, `${viewport.name} start`);
   }
 
   await page.fill('input[name="player-x"]', 'Ada');
@@ -994,6 +1015,7 @@ async function smokeViewport(browser, viewport) {
   await page.check('input[name="first-player"][value="o"]', { force: true });
   await page.click('.players-button');
   await waitForText(page, 'Bea to move');
+  await assertLiveStatus(page, `${viewport.name} after settings`, 'Bea to move Target: Any open board.');
   await assertAccessibilityAudit(page, `${viewport.name} after settings`, [
     ['heading', 'Ultimate Tic Tac Toe'],
     ['button', 'Start a new game'],
@@ -1004,6 +1026,7 @@ async function smokeViewport(browser, viewport) {
 
   await page.click('.cell-button');
   await waitForText(page, 'Ada to move');
+  await assertLiveStatus(page, `${viewport.name} after move`, 'Ada to move Target: Top left board.');
   assert((await page.locator('.mark').count()) === 1, `${viewport.name} did not render the first mark`);
   assert((await page.locator('.cell-button').count()) === 8, `${viewport.name} did not target the next board`);
   await assertAccessibilityAudit(page, `${viewport.name} after move`, [
@@ -1017,8 +1040,12 @@ async function smokeViewport(browser, viewport) {
     `${viewport.name} first move`,
   );
   await assertNoHorizontalOverflow(page, `${viewport.name} after move`);
-  if (viewport.name === 'desktop') {
-    await assertScreenshotBaseline(page, 'game-in-progress.png', 'desktop in-progress');
+  if (baselines.inProgress) {
+    await assertScreenshotBaseline(
+      page,
+      baselines.inProgress,
+      `${viewport.name} in-progress`,
+    );
   }
 
   await context.close();
