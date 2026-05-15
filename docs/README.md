@@ -9,6 +9,7 @@ here so the agent can progressively disclose only the context it needs.
 ## Map
 
 - `ARCHITECTURE.md`: source layout, dependency direction, and boundary rules.
+- `accessibility-review.md`: manual screen-reader review runbook.
 - `hypermedia-architecture.md`: Clack/Lack/Ningle/Spinneret routes and HTML
   contract.
 - `PRODUCT.md`: Ultimate Tic Tac Toe behavior and UI expectations.

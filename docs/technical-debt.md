@@ -7,7 +7,8 @@ focused patches.
 
 ## Known Debt
 
-- Add a manual screen-reader pass to complement the automated DOM,
+- Run and record the manual screen-reader pass in
+  `docs/accessibility-review.md` to complement the automated DOM,
   accessibility-tree, and color-contrast smoke coverage.
 
 ## Gardening Rule

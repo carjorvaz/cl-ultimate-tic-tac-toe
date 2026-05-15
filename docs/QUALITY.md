@@ -28,6 +28,8 @@ screen-reader review.
 - CI gate: `nix flake check` runs generated-asset validation, behavior tests,
   architecture validation, and repository harness validation.
 - Manual browser behavior: expected for larger UI changes beyond the smoke flow.
+- Manual screen-reader behavior: follow `docs/accessibility-review.md` when a
+  human accessibility pass is needed.
 
 ## Quality Invariants
 
@@ -43,9 +45,10 @@ screen-reader review.
 
 ## Known Gaps
 
-- No manual screen-reader pass is tracked in CI; the local browser smoke covers
-  DOM accessibility integrity, Chromium accessibility-tree names and roles, and
-  computed color contrast.
+- No manual screen-reader pass is tracked in CI; use
+  `docs/accessibility-review.md` to run and record one. The local browser smoke
+  covers DOM accessibility integrity, Chromium accessibility-tree names and
+  roles, and computed color contrast.
 - Screenshot regression is limited to the checked-in desktop start and
   in-progress baselines.
 - The client scripting boundary checks remain text-based because the client
