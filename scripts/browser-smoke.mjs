@@ -38,6 +38,10 @@ function browserExecutablePath() {
     return explicitPath;
   }
 
+  if (process.env.PLAYWRIGHT_BROWSERS_PATH) {
+    return undefined;
+  }
+
   const candidates = [
     '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
     '/Applications/Chromium.app/Contents/MacOS/Chromium',
