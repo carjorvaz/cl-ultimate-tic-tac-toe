@@ -167,6 +167,28 @@
     (is (null (mark-at game 2 2)))
     (is (null (board-outcome game 2)))))
 
+(test hard-search-depth-adapts-to-branching-factor
+  (let ((game (make-game)))
+    (is (= 81 (ultimate-tic-tac-toe.game::legal-move-count game)))
+    (is (= 2 (ultimate-tic-tac-toe.game::hard-search-depth-for-position game)))
+    (accept-move game 0 4)
+    (is (= 9 (ultimate-tic-tac-toe.game::legal-move-count game)))
+    (is (= 3 (ultimate-tic-tac-toe.game::hard-search-depth-for-position game)))))
+
+(test hard-search-cache-matches-uncached-score
+  (let ((game (make-game :next-player :o :active-board 0))
+        (cache (make-hash-table :test #'equal)))
+    (setf (aref (game-cells game) 0 0) :o
+          (aref (game-cells game) 0 8) :o
+          (aref (game-cells game) 4 0) :x
+          (aref (game-cells game) 4 1) :x)
+    (let ((uncached-score
+            (ultimate-tic-tac-toe.game::hard-search-score game :o 2 0))
+          (cached-score
+            (ultimate-tic-tac-toe.game::hard-search-score game :o 2 0 cache)))
+      (is (= uncached-score cached-score))
+      (is (plusp (hash-table-count cache))))))
+
 (test play-best-strategic-move-applies-selected-move
   (let ((game (make-game :next-player :o :active-board 2)))
     (setf (aref (game-board-outcomes game) 0) :o

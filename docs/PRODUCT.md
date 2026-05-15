@@ -20,6 +20,8 @@ computer opponent as O.
 - When O is set to Easy, Normal, or Hard, the computer immediately applies the
   chosen deterministic strategy after each human move and may start the game if
   O is selected first.
+- Easy selects the first legal move, Normal scores immediate tactics, and Hard
+  uses bounded search with adaptive depth in constrained positions.
 
 ## Player Experience
 

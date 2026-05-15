@@ -45,6 +45,8 @@ Rules:
 ## Design Invariants
 
 - The mutable `game` struct is the session payload; moves mutate it in place.
+- Computer move selection may clone game states for search, but only
+  `play-*` functions apply the selected move to the live session game.
 - Invalid moves return a `move-rejected` condition with a keyword reason that
   web code maps to user-facing notices.
 - A closed local board sends the next player back to any open board.

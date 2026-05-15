@@ -225,8 +225,6 @@
   "Return the number of currently legal moves in GAME."
   (let ((count 0))
     (do-legal-moves (board cell game count)
-      board
-      cell
       (incf count))))
 
 (defun local-board-outcome-with-mark (game board cell mark)
