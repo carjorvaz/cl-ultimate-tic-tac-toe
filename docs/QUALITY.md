@@ -6,9 +6,9 @@ Last reviewed: 2026-05-15
 
 A for a compact app: domain behavior, HTTP flow, session handling, concurrent
 duplicate moves, source boundaries, docs, browser behavior, accessibility
-structure, browser accessibility-tree coverage, color contrast, and desktop
-and mobile screenshot regression are tested. The remaining accessibility gap is
-human screen-reader review.
+structure, browser accessibility-tree coverage, color contrast, and
+desktop/mobile screenshot regression are tested. The remaining accessibility
+gap is human screen-reader review.
 
 ## Verification Matrix
 
@@ -51,5 +51,3 @@ human screen-reader review.
   roles, and computed color contrast.
 - Screenshot regression is limited to the checked-in start and in-progress
   baselines for desktop and mobile viewports.
-- The client scripting boundary checks remain text-based because the client
-  script is JavaScript, not Lisp.

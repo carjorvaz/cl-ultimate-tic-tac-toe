@@ -1,6 +1,6 @@
 # Repository Knowledge
 
-Last reviewed: 2026-05-15
+Last reviewed: 2026-05-16
 
 This directory is the system of record for project knowledge that should survive
 between agent runs. Keep documents focused and cross-linked; `AGENTS.md` points
@@ -10,6 +10,8 @@ here so the agent can progressively disclose only the context it needs.
 
 - `ARCHITECTURE.md`: source layout, dependency direction, and boundary rules.
 - `accessibility-review.md`: manual screen-reader review runbook.
+- `common-lisp-web-template.md`: reusable Common Lisp web app template
+  contract.
 - `hypermedia-architecture.md`: Clack/Lack/Ningle/Spinneret routes and HTML
   contract.
 - `PRODUCT.md`: Ultimate Tic Tac Toe behavior and UI expectations.

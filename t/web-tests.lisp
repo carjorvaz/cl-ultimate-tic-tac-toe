@@ -246,6 +246,8 @@
     (is (search "X to move Target: Any open board." html))
     (is (search "role=status" html))
     (is (search "aria-atomic=true" html))
+    (is (search "aria-label=\"Play X in the top left board, top left square\""
+                html))
     (is (search "game-shell is-any-board" html))
     (is (= 81 (count-substrings "is-playable" html)))
     (is (= 9 (count-substrings "is-choice" html)))

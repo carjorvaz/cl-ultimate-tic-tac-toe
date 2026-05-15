@@ -418,6 +418,9 @@
 (defun board-position-label (board)
   (aref *board-position-labels* board))
 
+(defun board-position-aria-label (board)
+  (string-downcase (board-position-label board)))
+
 (defun target-label (game)
   (cond
     ((game-winner game) "Done")
@@ -439,10 +442,10 @@
           :test #'=))
 
 (defun cell-aria-label (game board cell)
-  (format nil "Play ~A in board ~D cell ~D"
+  (format nil "Play ~A in the ~A board, ~A square"
           (player-name (game-next-player game))
-          (1+ board)
-          (1+ cell)))
+          (board-position-aria-label board)
+          (board-position-aria-label cell)))
 
 (defun emit-mark (mark)
   (spinneret:with-html

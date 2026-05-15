@@ -12,19 +12,34 @@
 
 (defparameter *errors* nil)
 
+(defparameter *application-system-name* "ultimate-tic-tac-toe")
+
+(defparameter *system-dependencies*
+  `((,*application-system-name*
+     ("coalton"
+      "named-readtables"
+      "clack"
+      "lack"
+      "lack/middleware/session"
+      "ningle"
+      "spinneret"
+      "clack-handler-woo"
+      "clack-handler-hunchentoot"
+      "hunchentoot"
+      "bordeaux-threads"
+      "ironclad"))
+    ("ultimate-tic-tac-toe/assets"
+     ("lass"))
+    ("ultimate-tic-tac-toe/test"
+     (,*application-system-name* "fiveam" "usocket"))))
+
+(defparameter *nix-dependency-name-overrides*
+  '(("lack/middleware/session" . "lack-middleware-session")))
+
 (defparameter *reader-systems*
-  '("coalton"
-    "named-readtables"
-    "clack"
-    "lack"
-    "lack/middleware/session"
-    "ningle"
-    "spinneret"
-    "clack-handler-woo"
-    "clack-handler-hunchentoot"
-    "hunchentoot"
-    "bordeaux-threads"
-    "ironclad"))
+  (copy-list (second (assoc *application-system-name*
+                            *system-dependencies*
+                            :test #'string=))))
 
 (defun fail (control &rest arguments)
   (push (apply #'format nil control arguments) *errors*))
@@ -295,6 +310,81 @@
    '("CLACK" "LACK/BUILDER" "NINGLE/APP" "SPINNERET")
    "web must remain the HTTP and HTML boundary"))
 
+(defun mask-javascript-character (string index)
+  (unless (char= (aref string index) #\Linefeed)
+    (setf (aref string index) #\Space)))
+
+(defun escaped-javascript-character-p (string index)
+  (oddp (loop for position downfrom (1- index) to 0
+              while (char= (aref string position) #\\)
+              count position)))
+
+(defun mask-javascript-line-comment (source masked start)
+  (loop with length = (length source)
+        for index from start below length
+        for character = (aref source index)
+        until (char= character #\Linefeed)
+        do (mask-javascript-character masked index)
+        finally (return index)))
+
+(defun mask-javascript-block-comment (source masked start)
+  (loop with length = (length source)
+        for index = start then (1+ index)
+        while (< index length)
+        do (mask-javascript-character masked index)
+           (when (and (char= (aref source index) #\*)
+                      (< (1+ index) length)
+                      (char= (aref source (1+ index)) #\/))
+             (mask-javascript-character masked (1+ index))
+             (return (+ index 2)))
+        finally (return length)))
+
+(defun mask-javascript-literal (source masked start delimiter)
+  (loop with length = (length source)
+        for index = start then (1+ index)
+        while (< index length)
+        do (mask-javascript-character masked index)
+           (when (and (> index start)
+                      (char= (aref source index) delimiter)
+                      (not (escaped-javascript-character-p source index)))
+             (return (1+ index)))
+        finally (return length)))
+
+(defun executable-javascript-text (source)
+  (let ((masked (copy-seq source)))
+    (loop with length = (length source)
+          for index = 0
+          while (< index length)
+          do (let ((character (aref source index)))
+               (setf index
+                     (cond
+                       ((and (char= character #\/)
+                             (< (1+ index) length)
+                             (char= (aref source (1+ index)) #\/))
+                        (mask-javascript-line-comment source masked index))
+                       ((and (char= character #\/)
+                             (< (1+ index) length)
+                             (char= (aref source (1+ index)) #\*))
+                        (mask-javascript-block-comment source masked index))
+                       ((or (char= character #\')
+                            (char= character #\")
+                            (char= character #\`))
+                        (mask-javascript-literal source masked index character))
+                       (t
+                        (1+ index))))))
+    masked))
+
+(defun validate-forbidden-javascript-code (relative-path marker reason)
+  (let* ((content (read-project-file relative-path))
+         (code (executable-javascript-text content))
+         (position (first-position marker code)))
+    (when position
+      (fail "~A:~D must not execute ~S (~A)."
+            relative-path
+            (line-number-at content position)
+            marker
+            reason))))
+
 (defun validate-client-script-boundary ()
   (dolist (marker '(("fetch(" "client scripting must not add a JSON/RPC request layer")
                     ("XMLHttpRequest" "client scripting must not add a JSON/RPC request layer")
@@ -306,7 +396,7 @@
                     ("window.location" "routing must stay hypermedia-driven")
                     ("document.cookie" "session handling belongs at the HTTP boundary")))
     (destructuring-bind (text reason) marker
-      (validate-forbidden-text "static/app.js" text reason))))
+      (validate-forbidden-javascript-code "static/app.js" text reason))))
 
 (defun validate-nix-dependency (dependency)
   (validate-required-text "flake.nix"
@@ -344,42 +434,31 @@
         (fail "ultimate-tic-tac-toe.asd must define ASDF system ~A."
               system-name))))
 
+(defun local-system-dependency-p (dependency)
+  (member dependency *system-dependencies*
+          :key #'first
+          :test #'string=))
+
+(defun nix-dependency-name (dependency)
+  (or (cdr (assoc dependency
+                  *nix-dependency-name-overrides*
+                  :test #'string=))
+      dependency))
+
+(defun expected-nix-dependencies ()
+  (remove-duplicates
+   (loop for dependencies in (mapcar #'second *system-dependencies*)
+         append (loop for dependency in dependencies
+                      unless (local-system-dependency-p dependency)
+                        collect (nix-dependency-name dependency)))
+   :test #'string=
+   :from-end t))
+
 (defun validate-dependencies ()
-  (validate-asdf-system-dependencies
-   "ultimate-tic-tac-toe"
-   '("coalton"
-     "named-readtables"
-     "clack"
-     "lack"
-     "lack/middleware/session"
-     "ningle"
-     "spinneret"
-     "clack-handler-woo"
-     "clack-handler-hunchentoot"
-     "hunchentoot"
-     "bordeaux-threads"
-     "ironclad"))
-  (validate-asdf-system-dependencies
-   "ultimate-tic-tac-toe/assets"
-   '("lass"))
-  (validate-asdf-system-dependencies
-   "ultimate-tic-tac-toe/test"
-   '("ultimate-tic-tac-toe" "fiveam" "usocket"))
-  (dolist (dependency '("coalton"
-                        "named-readtables"
-                        "clack"
-                        "lack"
-                        "lack-middleware-session"
-                        "ningle"
-                        "spinneret"
-                        "lass"
-                        "clack-handler-woo"
-                        "clack-handler-hunchentoot"
-                        "hunchentoot"
-                        "bordeaux-threads"
-                        "ironclad"
-                        "fiveam"
-                        "usocket"))
+  (dolist (entry *system-dependencies*)
+    (destructuring-bind (system-name dependencies) entry
+      (validate-asdf-system-dependencies system-name dependencies)))
+  (dolist (dependency (expected-nix-dependencies))
     (validate-nix-dependency dependency)))
 
 (defun collect-component-files (object)

@@ -1,6 +1,6 @@
 # Accessibility Review
 
-Last reviewed: 2026-05-15
+Last reviewed: 2026-05-16
 
 Use this runbook for the manual screen-reader pass that complements the
 automated browser smoke checks. Do not mark the pass complete unless a person
@@ -30,7 +30,8 @@ has actually listened to the screen-reader output and driven the flows below.
   button have clear names and a predictable keyboard order.
 - Radio groups support arrow-key movement and keep the selected option obvious
   in the screen-reader announcement.
-- Playable board cells are announced with player, board, and cell context.
+- Playable board cells are announced with player, board position, and square
+  position context.
 - After a move, the changed turn and target board are discoverable without
   leaving the keyboard flow.
 - Easy, Normal, and Hard computer modes announce the CPU difficulty in the

@@ -1006,7 +1006,7 @@ async function smokeViewport(browser, viewport) {
     ['radio', 'X'],
     ['radio', 'O'],
     ['link', 'Legal notices'],
-    ['button', 'Play X in board 1 cell 1'],
+    ['button', 'Play X in the top left board, top left square'],
   ]);
   await assertKeyboardStartupFlow(page, viewport.name);
   await assertStartupNameFields(page, viewport.name);
@@ -1026,7 +1026,7 @@ async function smokeViewport(browser, viewport) {
     ['heading', 'Ultimate Tic Tac Toe'],
     ['button', 'Start a new game'],
     ['StaticText', 'Bea to move'],
-    ['button', 'Play Bea in board 1 cell 1'],
+    ['button', 'Play Bea in the top left board, top left square'],
   ]);
   const beforeFirstMoveLayout = await gameLayoutSnapshot(page);
 
@@ -1038,7 +1038,7 @@ async function smokeViewport(browser, viewport) {
   await assertAccessibilityAudit(page, `${viewport.name} after move`, [
     ['heading', 'Ultimate Tic Tac Toe'],
     ['StaticText', 'Ada to move'],
-    ['button', 'Play Ada in board 1 cell 2'],
+    ['button', 'Play Ada in the top left board, top square'],
   ]);
   assertFirstMoveLayoutStable(
     beforeFirstMoveLayout,
@@ -1097,7 +1097,7 @@ async function smokeLegalNotices(browser, viewport) {
   await assertAccessibilityAudit(page, `${label} return`, [
     ['heading', 'Ultimate Tic Tac Toe'],
     ['button', 'Start'],
-    ['button', 'Play X in board 1 cell 1'],
+    ['button', 'Play X in the top left board, top left square'],
   ]);
   await assertNoHorizontalOverflow(page, `${label} return`);
 
@@ -1136,7 +1136,7 @@ async function smokeComputerOpponent(browser) {
     ['heading', 'Ultimate Tic Tac Toe'],
     ['StaticText', 'Ada to move'],
     ['StaticText', 'Normal CPU'],
-    ['button', /Play Ada in board 5 cell \d/],
+    ['button', /Play Ada in the center board, .+ square/],
   ]);
   await assertNoHorizontalOverflow(page, 'computer-start flow');
 
@@ -1149,7 +1149,7 @@ async function smokeComputerOpponent(browser) {
     ['heading', 'Ultimate Tic Tac Toe'],
     ['StaticText', 'Ada to move'],
     ['StaticText', 'Normal CPU'],
-    ['button', /Play Ada in board \d cell \d/],
+    ['button', /Play Ada in the .+ board, .+ square/],
   ]);
   await assertNoHorizontalOverflow(page, 'computer reply flow');
 
@@ -1187,7 +1187,7 @@ async function smokeEasyComputerOpponent(browser) {
     ['heading', 'Ultimate Tic Tac Toe'],
     ['StaticText', 'Ada to move'],
     ['StaticText', 'Easy CPU'],
-    ['button', /Play Ada in board \d cell \d/],
+    ['button', /Play Ada in the .+ board, .+ square/],
   ]);
   await assertNoHorizontalOverflow(page, 'easy computer flow');
 
@@ -1222,7 +1222,7 @@ async function smokeHardComputerOpponent(browser) {
     ['heading', 'Ultimate Tic Tac Toe'],
     ['StaticText', 'Ada to move'],
     ['StaticText', 'Hard CPU'],
-    ['button', /Play Ada in board \d cell \d/],
+    ['button', /Play Ada in the .+ board, .+ square/],
   ]);
   await assertNoHorizontalOverflow(page, 'hard computer flow');
 
@@ -1284,7 +1284,7 @@ async function smokeGameOverDialog(browser) {
   await assertAccessibilityAudit(page, 'game-over reset flow', [
     ['heading', 'Ultimate Tic Tac Toe'],
     ['button', 'Start'],
-    ['button', 'Play X in board 1 cell 1'],
+    ['button', 'Play X in the top left board, top left square'],
   ]);
   await assertNoHorizontalOverflow(page, 'game-over reset flow');
 
