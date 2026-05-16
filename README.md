@@ -30,6 +30,12 @@ or without enabling direnv:
 nix develop -c sbcl --script scripts/run.lisp
 ```
 
+or through the default flake app:
+
+```sh
+nix run .
+```
+
 The app listens on `http://127.0.0.1:4242/` by default. Set `PORT` to change
 the port, set `SERVER=hunchentoot` to use the fallback backend, and set
 `SOURCE_CODE_URL` to change the footer source link for deployed forks.
@@ -78,6 +84,12 @@ Run the deterministic repository checks used by CI with:
 
 ```sh
 nix flake check
+```
+
+Build the packaged app with:
+
+```sh
+nix build .#
 ```
 
 CI also runs the browser smoke check through `nix run .#browser-smoke` with

@@ -31,6 +31,9 @@
 
 (defparameter *plain-text-content-type* "text/plain; charset=utf-8")
 
+(defparameter *recovered-game-notice*
+  "The saved game state could not be used, so a fresh game has been started.")
+
 (defparameter *default-source-code-url*
   "https://github.com/carjorvaz/cl-ultimate-tic-tac-toe")
 
@@ -232,11 +235,20 @@
        (emit-csrf-input)
        ,@body)))
 
+(defun make-session-game (&key first-player)
+  (make-game :next-player (or first-player
+                              (session-first-player))))
+
 (defun current-game ()
   (let ((session (request-session)))
-    (or (gethash :game session)
-        (setf (gethash :game session)
-              (make-game :next-player (session-first-player))))))
+    (multiple-value-bind (game presentp)
+        (gethash :game session)
+      (if (and presentp
+               (valid-game-state-p game))
+          (values game nil)
+          (values (setf (gethash :game session)
+                        (make-session-game))
+                  presentp)))))
 
 (defun current-game-lock ()
   (let ((session (request-session)))
@@ -263,8 +275,7 @@
 
 (defun replace-current-game (&key first-player)
   (setf (current-session-value :game)
-        (make-game :next-player (or first-player
-                                    (session-first-player)))))
+        (make-session-game :first-player first-player)))
 
 (defun player-name-key (mark)
   (ecase mark
@@ -312,14 +323,20 @@
     (t :human)))
 
 (defun session-first-player ()
-  (or (current-session-value :first-player)
-      :x))
+  (let ((first-player (current-session-value :first-player)))
+    (if (player-p first-player)
+        first-player
+        :x)))
+
+(defun opponent-mode-p (object)
+  (member object '(:human :easy :normal :hard)))
 
 (defun session-opponent-mode ()
-  (or (current-session-value :opponent-mode)
-      (when (current-session-value :computer-player)
-        :normal)
-      :human))
+  (let ((mode (current-session-value :opponent-mode)))
+    (cond
+      ((opponent-mode-p mode) mode)
+      ((current-session-value :computer-player) :normal)
+      (t :human))))
 
 (defun session-opponent-value ()
   (ecase (session-opponent-mode)
@@ -828,17 +845,30 @@
 (defun home-handler (params)
   (declare (ignore params))
   (with-current-game-locked ()
-    (let ((game (maybe-play-computer-turn (current-game))))
-      (html-response (render-page game :notice (pop-notice))))))
+    (multiple-value-bind (game recoveredp)
+        (current-game)
+      (let ((notice (pop-notice)))
+        (setf game (maybe-play-computer-turn game))
+        (html-response
+         (render-page game
+                      :notice (if recoveredp
+                                  *recovered-game-notice*
+                                  notice)))))))
 
 (defun current-game-handler (params)
   (declare (ignore params))
   (with-current-game-locked ()
-    (let ((game (maybe-play-computer-turn (current-game))))
+    (multiple-value-bind (game recoveredp)
+        (current-game)
+      (setf game (maybe-play-computer-turn game))
       (html-response
        (if (htmx-request-p)
-           (render-htmx-response game)
-           (render-page game))))))
+           (render-htmx-response
+            game
+            :notice (and recoveredp *recovered-game-notice*))
+           (render-page
+            game
+            :notice (and recoveredp *recovered-game-notice*)))))))
 
 (defun legal-notices-handler (params)
   (declare (ignore params))
@@ -861,21 +891,28 @@
 (defun move-handler (params)
   (if (csrf-parameter-valid-p params)
       (with-current-game-locked ()
-        (let ((game (current-game))
-              (board-index (parse-index (form-parameter params "board")))
-              (cell-index (parse-index (form-parameter params "cell"))))
-          (if (and board-index cell-index)
-              (multiple-value-bind (updated-game acceptedp rejection)
-                  (play-move game board-index cell-index)
-                (declare (ignore updated-game))
-                (when acceptedp
-                  (maybe-play-computer-turn game))
-                (respond-after-post
-                 game
-                 :notice (unless acceptedp
-                           (move-rejection-notice rejection))))
-              (respond-after-post game
-                                  :notice "That move was not understood."))))
+        (multiple-value-bind (game recoveredp)
+            (current-game)
+          (let ((board-index (parse-index (form-parameter params "board")))
+                (cell-index (parse-index (form-parameter params "cell"))))
+            (cond
+              (recoveredp
+               (respond-after-post
+                (maybe-play-computer-turn game)
+                :notice *recovered-game-notice*))
+              ((and board-index cell-index)
+               (multiple-value-bind (updated-game acceptedp rejection)
+                   (play-move game board-index cell-index)
+                 (declare (ignore updated-game))
+                 (when acceptedp
+                   (maybe-play-computer-turn game))
+                 (respond-after-post
+                  game
+                  :notice (unless acceptedp
+                            (move-rejection-notice rejection)))))
+              (t
+               (respond-after-post game
+                                   :notice "That move was not understood."))))))
       (reject-csrf-token)))
 
 (defun games-handler (params)

@@ -1,6 +1,6 @@
 # Architecture
 
-Last reviewed: 2026-05-15
+Last reviewed: 2026-05-16
 
 Ultimate Tic Tac Toe is a server-rendered Common Lisp hypermedia app. The
 dependency shape is intentionally simple so future agents can inspect the whole
@@ -22,6 +22,8 @@ system quickly.
 - `t/` contains FiveAM tests for rules, game behavior, and HTTP rendering.
 - `scripts/` contains runnable entry points for local app, test, validation, and
   browser-smoke workflows.
+- `flake.nix` exposes the default packaged app, browser-smoke app, development
+  shell, and deterministic check derivation.
 
 ## Boundaries
 
@@ -72,3 +74,4 @@ Rules:
   regression, and screenshot refresh.
 - `nix flake check` runs asset validation, behavior tests, architecture
   validation, and harness validation.
+- `nix build .#` builds the packaged app and runs the package check phase.

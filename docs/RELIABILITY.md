@@ -8,6 +8,7 @@ the app locally without hidden service dependencies.
 ## Runtime
 
 - Start the app with `direnv exec . sbcl --script scripts/run.lisp`.
+- Start the packaged flake app with `nix run .`.
 - The default URL is `http://127.0.0.1:4242/`.
 - The public deployment is `https://ultimate-tic-tac-toe.carjorvaz.com/`.
 - `GET /health` returns `ok` for readiness checks.
@@ -37,6 +38,7 @@ the app locally without hidden service dependencies.
 - Use `scripts/validate-assets.lisp` after stylesheet-source or generated-CSS
   edits.
 - Use `scripts/validate-docs.lisp` for repository-harness validation.
+- Use `nix build .#` to verify the packaged app output.
 - Use `scripts/browser-smoke.mjs` for browser-driven desktop/mobile rendering,
   HTMX swap, computer-opponent play, CSRF-form, accessibility structure,
   accessibility-tree names and roles, color contrast, keyboard flow, modal

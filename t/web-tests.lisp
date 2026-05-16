@@ -67,6 +67,25 @@
            (setf start (+ position (length needle)))
         finally (return count)))
 
+(defparameter +test-csrf-token+
+  "0000000000000000000000000000000000000000000000000000000000000000")
+
+(defun make-test-headers (&key htmx)
+  (let ((headers (make-hash-table :test #'equal)))
+    (when htmx
+      (setf (gethash "hx-request" headers) "true"))
+    headers))
+
+(defmacro with-test-request-session ((session &key htmx) &body body)
+  `(let ((,session (make-hash-table :test #'eq)))
+     (let ((ultimate-tic-tac-toe.web::*request-env*
+             (list :lack.session ,session
+                   :headers (make-test-headers :htmx ,htmx))))
+       ,@body)))
+
+(defun clack-response-body (response)
+  (first (third response)))
+
 (defun render-fragment (game &key notice)
   (ultimate-tic-tac-toe.web::render-game-fragment game :notice notice))
 
@@ -308,6 +327,42 @@
     (is (string= "The game is already over."
                  (ultimate-tic-tac-toe.web::move-rejection-notice
                   (reject-move :game-over game 0 0))))))
+
+(test corrupt-session-game-is-recovered-before-rendering
+  (with-test-request-session (session)
+    (let ((bad-game (make-game)))
+      (setf (aref (game-cells bad-game) 0 0) :x
+            (gethash :first-player session) :o
+            (gethash :game session) bad-game)
+      (multiple-value-bind (game recoveredp)
+          (ultimate-tic-tac-toe.web::current-game)
+        (multiple-value-bind (validp violations)
+            (valid-game-state-p game)
+          (is (not (null recoveredp)))
+          (is (not (eq bad-game game)))
+          (is (eq game (gethash :game session)))
+          (is (eql :o (game-next-player game)))
+          (is (not (null validp)))
+          (is (null violations)))))))
+
+(test corrupt-session-move-post-resets-instead-of-playing
+  (with-test-request-session (session :htmx t)
+    (let ((bad-game (make-game)))
+      (setf (aref (game-cells bad-game) 0 0) :x
+            (gethash :csrf-token session) +test-csrf-token+
+            (gethash :game session) bad-game)
+      (let* ((response
+               (ultimate-tic-tac-toe.web::move-handler
+                `(("csrf-token" . ,+test-csrf-token+)
+                  ("board" . "0")
+                  ("cell" . "0"))))
+             (body (clack-response-body response))
+             (game (gethash :game session)))
+        (is (= 200 (first response)))
+        (is (= 0 (game-move-count game)))
+        (is (search "fresh game has been started" body))
+        (is (search "X to move" body))
+        (is (= 0 (count-substrings "mark mark-x" body)))))))
 
 (test home-renders-full-page-without-session-urls
   (with-test-server (port)
