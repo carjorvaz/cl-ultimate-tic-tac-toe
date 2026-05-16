@@ -1,6 +1,6 @@
 # Reliability
 
-Last reviewed: 2026-05-15
+Last reviewed: 2026-05-16
 
 Reliability in this project means every agent can boot, test, and reason about
 the app locally without hidden service dependencies.
@@ -42,7 +42,8 @@ the app locally without hidden service dependencies.
   accessibility-tree names and roles, color contrast, keyboard flow, modal
   focus, screenshot regression, backend health probes, and overflow validation.
 - Use `nix flake check` before treating a change as ready for CI.
-- Run the browser smoke locally before treating UI changes as ready.
+- Run the browser smoke locally before treating UI changes as ready; CI runs
+  the same flow through `nix run .#browser-smoke`.
 - Use `docs/accessibility-review.md` for a manual screen-reader pass when
   accessibility behavior needs human review.
 - For larger UI work, still run the app manually when visual judgment matters;

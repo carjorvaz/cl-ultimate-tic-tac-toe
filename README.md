@@ -80,6 +80,8 @@ Run the deterministic repository checks used by CI with:
 nix flake check
 ```
 
+CI also runs the browser smoke check through `nix run .#browser-smoke`.
+
 ## Repository Knowledge
 
 `AGENTS.md` is the short agent map. Durable project knowledge lives under

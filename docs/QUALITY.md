@@ -1,6 +1,6 @@
 # Quality
 
-Last reviewed: 2026-05-15
+Last reviewed: 2026-05-16
 
 ## Current Grade
 
@@ -26,7 +26,8 @@ gap is human screen-reader review.
   `scripts/validate-architecture.lisp`.
 - Repository harness docs: covered by `scripts/validate-docs.lisp`.
 - CI gate: `nix flake check` runs generated-asset validation, behavior tests,
-  architecture validation, and repository harness validation.
+  architecture validation, and repository harness validation. GitHub Actions
+  also runs `nix run .#browser-smoke`.
 - Manual browser behavior: expected for larger UI changes beyond the smoke flow.
 - Manual screen-reader behavior: follow `docs/accessibility-review.md` when a
   human accessibility pass is needed.

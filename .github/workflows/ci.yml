@@ -30,3 +30,6 @@ jobs:
 
       - name: Run checks
         run: nix flake check --print-build-logs
+
+      - name: Run browser smoke
+        run: nix run .#browser-smoke
