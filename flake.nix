@@ -34,8 +34,65 @@
           fiveam
           usocket
         ]);
+
+      mkPackage = pkgs:
+        let
+          lisp = mkLisp pkgs;
+        in
+        pkgs.stdenvNoCC.mkDerivation {
+          pname = "ultimate-tic-tac-toe";
+          version = "0.1.0";
+
+          src = self;
+
+          nativeBuildInputs = [
+            pkgs.makeWrapper
+          ];
+
+          doCheck = true;
+
+          checkPhase = ''
+            runHook preCheck
+
+            export HOME="$TMPDIR"
+            ${lisp}/bin/sbcl --script scripts/validate-assets.lisp
+            ${lisp}/bin/sbcl --script scripts/test.lisp
+            ${lisp}/bin/sbcl --script scripts/validate-architecture.lisp
+            ${lisp}/bin/sbcl --script scripts/validate-docs.lisp
+
+            runHook postCheck
+          '';
+
+          installPhase = ''
+            runHook preInstall
+
+            mkdir -p "$out/share/ultimate-tic-tac-toe" "$out/bin"
+            cp -R . "$out/share/ultimate-tic-tac-toe/"
+
+            makeWrapper ${lisp}/bin/sbcl "$out/bin/ultimate-tic-tac-toe" \
+              --add-flags "--script $out/share/ultimate-tic-tac-toe/scripts/run.lisp"
+
+            runHook postInstall
+          '';
+
+          meta = {
+            description = "Server-rendered Ultimate Tic Tac Toe in Common Lisp with HTMX";
+            homepage = "https://ultimate-tic-tac-toe.carjorvaz.com";
+            license = nixpkgs.lib.licenses.agpl3Plus;
+            mainProgram = "ultimate-tic-tac-toe";
+            platforms = nixpkgs.lib.platforms.unix;
+          };
+        };
     in
     {
+      packages = forAllSystems (system:
+        let
+          pkgs = mkPkgs system;
+        in
+        {
+          default = mkPackage pkgs;
+        });
+
       devShells = forAllSystems (system:
         let
           pkgs = mkPkgs system;
@@ -64,11 +121,6 @@
         let
           pkgs = mkPkgs system;
           lisp = mkLisp pkgs;
-          runner = pkgs.writeShellScriptBin "ultimate-tic-tac-toe" ''
-            set -euo pipefail
-            cd ${self}
-            exec ${lisp}/bin/sbcl --script scripts/run.lisp
-          '';
           browserSmokeRunner = pkgs.writeShellScriptBin "ultimate-tic-tac-toe-browser-smoke" ''
             set -euo pipefail
             cd ${self}
@@ -81,7 +133,7 @@
         {
           default = {
             type = "app";
-            program = "${runner}/bin/ultimate-tic-tac-toe";
+            program = "${self.packages.${system}.default}/bin/ultimate-tic-tac-toe";
           };
           browser-smoke = {
             type = "app";
