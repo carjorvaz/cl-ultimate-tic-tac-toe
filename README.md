@@ -80,7 +80,8 @@ Run the deterministic repository checks used by CI with:
 nix flake check
 ```
 
-CI also runs the browser smoke check through `nix run .#browser-smoke`.
+CI also runs the browser smoke check through `nix run .#browser-smoke` with
+checked-in screenshot comparison skipped for runner-portable rendering.
 
 ## Repository Knowledge
 

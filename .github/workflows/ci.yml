@@ -32,4 +32,4 @@ jobs:
         run: nix flake check --print-build-logs
 
       - name: Run browser smoke
-        run: nix run .#browser-smoke
+        run: BROWSER_SMOKE_SKIP_SCREENSHOTS=1 nix run .#browser-smoke

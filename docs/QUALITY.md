@@ -27,7 +27,8 @@ gap is human screen-reader review.
 - Repository harness docs: covered by `scripts/validate-docs.lisp`.
 - CI gate: `nix flake check` runs generated-asset validation, behavior tests,
   architecture validation, and repository harness validation. GitHub Actions
-  also runs `nix run .#browser-smoke`.
+  also runs `nix run .#browser-smoke` with screenshot comparison skipped for
+  runner-portable rendering.
 - Manual browser behavior: expected for larger UI changes beyond the smoke flow.
 - Manual screen-reader behavior: follow `docs/accessibility-review.md` when a
   human accessibility pass is needed.

@@ -43,7 +43,8 @@ the app locally without hidden service dependencies.
   focus, screenshot regression, backend health probes, and overflow validation.
 - Use `nix flake check` before treating a change as ready for CI.
 - Run the browser smoke locally before treating UI changes as ready; CI runs
-  the same flow through `nix run .#browser-smoke`.
+  the same flow through `nix run .#browser-smoke`, with screenshot comparison
+  skipped for runner-portable rendering.
 - Use `docs/accessibility-review.md` for a manual screen-reader pass when
   accessibility behavior needs human review.
 - For larger UI work, still run the app manually when visual judgment matters;

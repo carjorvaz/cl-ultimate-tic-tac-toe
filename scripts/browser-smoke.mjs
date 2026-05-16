@@ -13,6 +13,8 @@ const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..')
 const timeoutMs = 30000;
 const backendStartupTimeoutMs = 60000;
 const updateScreenshots = process.env.UPDATE_SCREENSHOTS === '1';
+const skipScreenshots = process.env.BROWSER_SMOKE_SKIP_SCREENSHOTS === '1'
+  && !updateScreenshots;
 const screenshotDir = path.join(root, 'docs', 'assets', 'screenshots');
 const screenshotDiffPixelLimit = 0.004;
 const screenshotDiffChannelLimit = 1.6;
@@ -466,6 +468,10 @@ function screenshotDiff(actualBuffer, expectedBuffer) {
 }
 
 async function assertScreenshotBaseline(page, fileName, label) {
+  if (skipScreenshots) {
+    return;
+  }
+
   const screenshot = await page.screenshot(screenshotOptions);
   const screenshotPath = path.join(screenshotDir, fileName);
 
