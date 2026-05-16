@@ -40,6 +40,7 @@
    #:winning-line-positions
    #:mark-at
    #:legal-move-p
+   #:valid-game-state-p
    #:first-legal-move
    #:best-tactical-move
    #:best-strategic-move

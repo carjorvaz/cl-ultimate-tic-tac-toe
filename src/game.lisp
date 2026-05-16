@@ -110,6 +110,12 @@
     (:draw "Draw")
     ((nil) "Open")))
 
+(defun outcome-p (object)
+  "Return true when OBJECT is a board or game outcome."
+  (or (null object)
+      (player-p object)
+      (eql object :draw)))
+
 (defun other-player (player)
   (ecase player
     (:x :o)
@@ -226,6 +232,99 @@
   (let ((count 0))
     (do-legal-moves (board cell game count)
       (incf count))))
+
+(defun expected-cell-array-p (object)
+  (and (arrayp object)
+       (= 2 (array-rank object))
+       (= +board-count+ (array-dimension object 0))
+       (= +board-count+ (array-dimension object 1))))
+
+(defun expected-board-vector-p (object)
+  (and (arrayp object)
+       (= 1 (array-rank object))
+       (= +board-count+ (array-dimension object 0))))
+
+(defun occupied-cell-count (game)
+  (loop for board below +board-count+
+        sum (loop for cell below +board-count+
+                  count (mark-at game board cell))))
+
+(defun game-invariant-violations (game)
+  "Return internal consistency violations for GAME.
+
+Each violation is a list whose first element is a keyword reason. A game built
+only through PLAY-MOVE should have no violations."
+  (let (violations)
+    (flet ((violate (reason &rest details)
+             (push (cons reason details) violations)))
+      (cond
+        ((not (game-p game))
+         (violate :not-a-game game))
+        (t
+         (let ((cells-valid-p (expected-cell-array-p (game-cells game)))
+               (outcomes-valid-p
+                 (expected-board-vector-p (game-board-outcomes game))))
+           (unless cells-valid-p
+             (violate :invalid-cells-array (game-cells game)))
+           (unless outcomes-valid-p
+             (violate :invalid-board-outcomes-array
+                      (game-board-outcomes game)))
+           (unless (player-p (game-next-player game))
+             (violate :invalid-next-player (game-next-player game)))
+           (unless (and (integerp (game-move-count game))
+                        (<= 0 (game-move-count game)
+                            (* +board-count+ +board-count+)))
+             (violate :invalid-move-count (game-move-count game)))
+           (unless (outcome-p (game-winner game))
+             (violate :invalid-winner (game-winner game)))
+           (unless (or (null (game-active-board game))
+                       (valid-index-p (game-active-board game)))
+             (violate :invalid-active-board (game-active-board game)))
+           (when cells-valid-p
+             (loop for board below +board-count+
+                   do (loop for cell below +board-count+
+                            for mark = (mark-at game board cell)
+                            unless (or (null mark) (player-p mark))
+                              do (violate :invalid-mark board cell mark)))
+             (unless (= (game-move-count game)
+                        (occupied-cell-count game))
+               (violate :stale-move-count
+                        (game-move-count game)
+                        (occupied-cell-count game))))
+           (when outcomes-valid-p
+             (loop for board below +board-count+
+                   for outcome = (board-outcome game board)
+                   unless (outcome-p outcome)
+                     do (violate :invalid-board-outcome board outcome)))
+           (when (and cells-valid-p outcomes-valid-p)
+             (loop for board below +board-count+
+                   for recorded = (board-outcome game board)
+                   for actual = (local-board-outcome game board)
+                   unless (eql recorded actual)
+                     do (violate :stale-board-outcome board recorded actual))
+             (let ((actual-winner (global-outcome game)))
+               (unless (eql (game-winner game) actual-winner)
+                 (violate :stale-global-outcome
+                          (game-winner game)
+                          actual-winner)))
+             (when (and (game-active-board game)
+                        (board-complete-p game (game-active-board game)))
+               (violate :closed-active-board (game-active-board game)))
+             (when (and (game-winner game)
+                        (game-active-board game))
+               (violate :active-board-after-game-over
+                        (game-active-board game)))
+             (when (and (null (game-winner game))
+                        (zerop (legal-move-count game)))
+               (violate :no-legal-moves-before-game-over)))))))
+    (nreverse violations)))
+
+(defun valid-game-state-p (game)
+  "Return whether GAME satisfies the internal invariants.
+
+The second value is the list of invariant violations."
+  (let ((violations (game-invariant-violations game)))
+    (values (null violations) violations)))
 
 (defun local-board-outcome-with-mark (game board cell mark)
   (let ((previous-mark (aref (game-cells game) board cell)))
@@ -507,10 +606,11 @@ place so it can live directly in a web session."
     (setf (aref (game-cells game) board cell) player)
     (incf (game-move-count game))
     (update-outcomes-after-move game board)
-    (unless (game-winner game)
-      (setf (game-active-board game) (unless (board-complete-p game cell)
-                                       cell)
-            (game-next-player game) (other-player player))))
+    (if (game-winner game)
+        (setf (game-active-board game) nil)
+        (setf (game-active-board game) (unless (board-complete-p game cell)
+                                         cell)
+              (game-next-player game) (other-player player))))
   (values game t))
 
 (defun play-first-legal-move (game)

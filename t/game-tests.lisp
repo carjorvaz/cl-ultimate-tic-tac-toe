@@ -43,12 +43,84 @@
         (game-next-player game) :x)
   game)
 
+(defun prepare-global-win-before-last-move (game)
+  (dolist (board '(0 1))
+    (dolist (cell '(0 1 2))
+      (setf (aref (game-cells game) board cell) :x))
+    (setf (aref (game-board-outcomes game) board) :x))
+  (setf (aref (game-cells game) 2 0) :x
+        (aref (game-cells game) 2 1) :x
+        (game-active-board game) nil
+        (game-next-player game) :x
+        (game-move-count game) 8)
+  game)
+
+(defun assert-valid-game (game)
+  (multiple-value-bind (validp violations)
+      (valid-game-state-p game)
+    (is (not (null validp)))
+    (is (null violations)))
+  game)
+
+(defun invariant-reason-present-p (reason violations)
+  (not (null (assoc reason violations))))
+
+(defun game-snapshot (game)
+  (list (game-next-player game)
+        (game-active-board game)
+        (game-winner game)
+        (game-move-count game)
+        (loop for board below +board-count+
+              collect (board-outcome game board))
+        (loop for board below +board-count+
+              append (loop for cell below +board-count+
+                           collect (mark-at game board cell)))))
+
 (test new-game-starts-open
   (let ((game (make-game)))
     (is (eql :x (game-next-player game)))
     (is (null (game-active-board game)))
     (is (legal-move-p game 0 0))
-    (is (legal-move-p game 8 8))))
+    (is (legal-move-p game 8 8))
+    (assert-valid-game game)))
+
+(test game-invariant-violations-report-corruption
+  (multiple-value-bind (validp violations)
+      (valid-game-state-p :not-a-game)
+    (is (null validp))
+    (is (invariant-reason-present-p :not-a-game violations)))
+  (let ((game (make-game)))
+    (setf (game-active-board game) +board-count+)
+    (multiple-value-bind (validp violations)
+        (valid-game-state-p game)
+      (is (null validp))
+      (is (invariant-reason-present-p :invalid-active-board violations))))
+  (let ((game (make-game)))
+    (setf (aref (game-cells game) 0 0) :maybe)
+    (multiple-value-bind (validp violations)
+        (valid-game-state-p game)
+      (is (null validp))
+      (is (invariant-reason-present-p :invalid-mark violations))))
+  (let ((game (make-game)))
+    (setf (aref (game-cells game) 0 0) :x)
+    (multiple-value-bind (validp violations)
+        (valid-game-state-p game)
+      (is (null validp))
+      (is (invariant-reason-present-p :stale-move-count violations))))
+  (let ((game (make-game)))
+    (setf (aref (game-board-outcomes game) 0) :x)
+    (multiple-value-bind (validp violations)
+        (valid-game-state-p game)
+      (is (null validp))
+      (is (invariant-reason-present-p :stale-board-outcome violations))))
+  (let ((game (make-game)))
+    (setf (game-winner game) :x
+          (game-active-board game) 0)
+    (multiple-value-bind (validp violations)
+        (valid-game-state-p game)
+      (is (null validp))
+      (is (invariant-reason-present-p :active-board-after-game-over
+                                      violations)))))
 
 (test accepted-move-selects-target-board
   (let ((game (make-game)))
@@ -81,6 +153,56 @@
       (is (eql :o (game-next-player game)))
       (is (= 0 (game-active-board game)))
       (is (= 1 (game-move-count game))))))
+
+(test reachable-game-satisfies-invariants-after-each-move
+  (let ((game (make-game)))
+    (assert-valid-game game)
+    (dolist (move '((0 0) (0 1) (1 2) (2 0) (0 3)
+                    (3 4) (4 5) (5 0) (0 6)))
+      (destructuring-bind (board cell) move
+        (accept-move game board cell)
+        (assert-valid-game game)))))
+
+(test deterministic-playout-satisfies-invariants
+  (let ((game (make-game)))
+    (loop repeat (* +board-count+ +board-count+)
+          until (game-over-p game)
+          do (multiple-value-bind (updated-game acceptedp rejection)
+                 (play-first-legal-move game)
+               (is (eq updated-game game))
+               (is (not (null acceptedp)))
+               (is (null rejection))
+               (assert-valid-game game)))
+    (is (game-over-p game))
+    (assert-valid-game game)))
+
+(test move-selectors-do-not-mutate-reachable-game
+  (let ((game (make-game)))
+    (accept-moves game '(0 0) '(0 1) '(1 2) '(2 0))
+    (assert-valid-game game)
+    (let ((snapshot (game-snapshot game)))
+      (best-tactical-move game)
+      (is (equal snapshot (game-snapshot game)))
+      (best-strategic-move game :depth 1)
+      (is (equal snapshot (game-snapshot game))))
+    (assert-valid-game game)))
+
+(test invalid-game-state-reports-invariant-violations
+  (let ((game (make-game)))
+    (setf (aref (game-cells game) 0 0) :not-a-player)
+    (multiple-value-bind (validp violations)
+        (valid-game-state-p game)
+      (is (null validp))
+      (is (invariant-reason-present-p :invalid-mark violations))
+      (is (invariant-reason-present-p :stale-move-count violations)))))
+
+(test stale-board-outcome-reports-invariant-violation
+  (let ((game (make-game)))
+    (setf (aref (game-board-outcomes game) 0) :x)
+    (multiple-value-bind (validp violations)
+        (valid-game-state-p game)
+      (is (null validp))
+      (is (invariant-reason-present-p :stale-board-outcome violations)))))
 
 (test best-tactical-move-prefers-center
   (let ((game (make-game)))
@@ -201,7 +323,8 @@
       (is (not (null acceptedp)))
       (is (null rejection))
       (is (eql :o (mark-at game 2 2)))
-      (is (eql :o (game-winner game))))))
+      (is (eql :o (game-winner game)))
+      (is (null (game-active-board game))))))
 
 (test completed-target-board-opens-the-choice
   (let ((game (make-game)))
@@ -285,6 +408,14 @@
           (game-next-player game) :x)
     (accept-move game 2 2)
     (is (eql :x (game-winner game)))))
+
+(test global-win-clears-active-board-and-remains-valid
+  (let ((game (prepare-global-win-before-last-move (make-game))))
+    (assert-valid-game game)
+    (accept-move game 2 2)
+    (is (eql :x (game-winner game)))
+    (is (null (game-active-board game)))
+    (assert-valid-game game)))
 
 (test global-draw-is-recorded
   (let ((game (make-game)))
