@@ -10,6 +10,11 @@ focused patches.
 - Run and record the manual screen-reader pass in
   `docs/accessibility-review.md` to complement the automated DOM,
   accessibility-tree, and color-contrast smoke coverage.
+- Refresh or redeploy the public service at
+  `https://ultimate-tic-tac-toe.carjorvaz.com/`. On 2026-05-16 it still served
+  an older Hunchentoot page with room URLs, numeric cell labels, session IDs in
+  form actions, and a 404 for `/version`. Close this only after `/version`
+  responds and the positional cell labels from current `master` are visible.
 
 ## Gardening Rule
 
