@@ -69,6 +69,7 @@
                 #:winning-line-positions
                 #:mark-at
                 #:legal-move-p
+                #:valid-game-state-p
                 #:available-board-p
                 #:play-move
                 #:play-first-legal-move
