@@ -92,6 +92,21 @@ Build the packaged app with:
 nix build .#
 ```
 
+The flake also exports a NixOS module for service deployments:
+
+```nix
+{
+  imports = [
+    inputs.cl-ultimate-tic-tac-toe.nixosModules.default
+  ];
+
+  services.ultimate-tic-tac-toe = {
+    enable = true;
+    port = 4242;
+  };
+}
+```
+
 CI also runs the browser smoke check through `nix run .#browser-smoke` with
 checked-in screenshot comparison skipped for runner-portable rendering.
 

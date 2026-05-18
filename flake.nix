@@ -7,7 +7,6 @@
     let
       systems = [
         "aarch64-darwin"
-        "x86_64-darwin"
         "aarch64-linux"
         "x86_64-linux"
       ];
@@ -145,23 +144,46 @@
         let
           pkgs = mkPkgs system;
           lisp = mkLisp pkgs;
-        in
-        {
-          default = pkgs.runCommand "ultimate-tic-tac-toe-tests"
+          baseChecks = {
+            default = pkgs.runCommand "ultimate-tic-tac-toe-tests"
+              {
+                nativeBuildInputs = [
+                  lisp
+                ];
+              }
+              ''
+                export HOME="$TMPDIR"
+                cd ${self}
+                sbcl --script scripts/validate-assets.lisp
+                sbcl --script scripts/test.lisp
+                sbcl --script scripts/validate-architecture.lisp
+                sbcl --script scripts/validate-docs.lisp
+                touch "$out"
+              '';
+          };
+          moduleChecks = nixpkgs.lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux (
+            let
+              moduleSystem = nixpkgs.lib.nixosSystem {
+                inherit system;
+                modules = [
+                  self.nixosModules.default
+                  ({ ... }: {
+                    services.ultimate-tic-tac-toe.enable = true;
+                  })
+                ];
+              };
+            in
             {
-              nativeBuildInputs = [
-                lisp
-              ];
+              nixos-module = pkgs.runCommand "ultimate-tic-tac-toe-nixos-module" { } ''
+                test "${moduleSystem.config.systemd.services.ultimate-tic-tac-toe.description}" = "Ultimate Tic Tac Toe web app"
+                test "${moduleSystem.config.systemd.services.ultimate-tic-tac-toe.serviceConfig.User}" = "ultimate-tic-tac-toe"
+                touch "$out"
+              '';
             }
-            ''
-              export HOME="$TMPDIR"
-              cd ${self}
-              sbcl --script scripts/validate-assets.lisp
-              sbcl --script scripts/test.lisp
-              sbcl --script scripts/validate-architecture.lisp
-              sbcl --script scripts/validate-docs.lisp
-              touch "$out"
-            '';
-        });
+          );
+        in
+        baseChecks // moduleChecks);
+
+      nixosModules.default = import ./module.nix { inherit self; };
     };
 }
