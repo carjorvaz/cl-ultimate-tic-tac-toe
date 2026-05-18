@@ -100,18 +100,31 @@ in
 
         NoNewPrivileges = true;
         PrivateTmp = true;
+        PrivateDevices = true;
+        ProtectClock = true;
+        ProtectControlGroups = true;
         ProtectHome = true;
+        ProtectHostname = true;
+        ProtectKernelLogs = true;
+        ProtectKernelModules = true;
+        ProtectKernelTunables = true;
+        ProtectProc = "invisible";
         ProtectSystem = "strict";
+        ProcSubset = "pid";
         ReadWritePaths = [ runtimeStateDir ];
+        RemoveIPC = true;
         RestrictAddressFamilies = [
           "AF_INET"
           "AF_INET6"
           "AF_UNIX"
         ];
+        RestrictNamespaces = true;
+        RestrictSUIDSGID = true;
         CapabilityBoundingSet = "";
         LockPersonality = true;
         RestrictRealtime = true;
         SystemCallArchitectures = "native";
+        UMask = "0077";
       };
     };
 
