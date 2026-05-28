@@ -873,7 +873,9 @@ async function assertKeyboardStartupFlow(page, label) {
   });
 
   await page.keyboard.press('Tab');
-  await assertFocused('.reset-button', 'topbar new game button');
+  await assertFocused('.reset-form .reset-button', 'topbar new game button');
+  await page.keyboard.press('Tab');
+  await assertFocused('.room-start-form .reset-button', 'topbar create room button');
   await page.keyboard.press('Tab');
   await assertFocused('#player-x-name', 'X player name');
   await page.keyboard.press('Tab');
@@ -981,6 +983,150 @@ async function playMove(page, board, cell, moveNumber) {
   );
 }
 
+async function assertRoomShell(page, label) {
+  assert((await page.locator('#room-game').count()) === 1, `${label} should render one #room-game fragment`);
+
+  const roomBox = await page.locator('#room-game').boundingBox();
+  assert(roomBox, `${label} did not render #room-game`);
+  assert(roomBox.width > 200 && roomBox.height > 200, `${label} rendered a tiny room shell`);
+  await assertNoHorizontalOverflow(page, label);
+}
+
+async function assertRoomMoveControlCount(page, label, expectedCount) {
+  const forms = await page.locator('#room-game form.cell-form[action$="/moves"]').count();
+  const buttons = await page.locator('#room-game .cell-button').count();
+  assert(forms === expectedCount, `${label} rendered ${forms} room move forms instead of ${expectedCount}`);
+  assert(buttons === expectedCount, `${label} rendered ${buttons} playable room cells instead of ${expectedCount}`);
+}
+
+async function assertRoomMarkCount(page, label, expectedCount) {
+  const marks = await page.locator('#room-game .mark').count();
+  assert(marks === expectedCount, `${label} rendered ${marks} marks instead of ${expectedCount}`);
+}
+
+async function smokeRoomMultiContext(browser) {
+  const contexts = [];
+  const failures = [];
+  const roomViewport = { width: 1280, height: 900 };
+
+  async function newRoomPage(label) {
+    const context = await browser.newContext({
+      viewport: roomViewport,
+      deviceScaleFactor: 1,
+    });
+    contexts.push(context);
+    const page = await context.newPage();
+    captureBrowserFailures(page, failures);
+    page.on('requestfailed', (request) => {
+      if (request.url().startsWith(baseUrl)) {
+        failures.push(`${label} request failed: ${request.url()} ${request.failure()?.errorText ?? ''}`);
+      }
+    });
+    return page;
+  }
+
+  try {
+    const xPage = await newRoomPage('room X');
+    await xPage.goto(baseUrl, { waitUntil: 'commit' });
+    await xPage.waitForSelector('#game', { timeout: timeoutMs });
+    await waitForHtmx(xPage);
+
+    await xPage.locator('.room-start-form button').click();
+    await xPage.waitForURL(/\/rooms\/[A-Z0-9]+$/, { timeout: timeoutMs });
+    await xPage.waitForSelector('#room-game', { timeout: timeoutMs });
+    await waitForHtmx(xPage);
+
+    const roomPath = new URL(xPage.url()).pathname;
+    const roomCode = roomPath.split('/').pop();
+    const roomUrl = new URL(roomPath, baseUrl).href;
+
+    await waitForText(xPage, 'Watching');
+    await assertRoomShell(xPage, 'room creator before seat claim');
+    await assertRoomMoveControlCount(xPage, 'room creator before seat claim', 0);
+
+    await xPage.getByRole('button', { name: 'Claim X' }).click();
+    await waitForText(xPage, 'You are X');
+    await assertRoomShell(xPage, 'room X after seat claim');
+    await assertRoomMoveControlCount(xPage, 'room X after seat claim', 81);
+    await assertAccessibilityAudit(xPage, 'room X after seat claim', [
+      ['heading', `Room ${roomCode}`],
+      ['StaticText', 'You are X'],
+      ['button', 'Claim O'],
+      ['button', 'Play X in the top left board, top left square'],
+    ]);
+
+    const oPage = await newRoomPage('room O');
+    await oPage.goto(roomUrl, { waitUntil: 'commit' });
+    await oPage.waitForSelector('#room-game', { timeout: timeoutMs });
+    await waitForHtmx(oPage);
+    await waitForText(oPage, 'Watching');
+    await waitForText(oPage, 'Claim O');
+
+    await oPage.getByRole('button', { name: 'Claim O' }).click();
+    await waitForText(oPage, 'You are O');
+    await assertRoomShell(oPage, 'room O before X move');
+    await assertRoomMoveControlCount(oPage, 'room O before X move', 0);
+    await assertAccessibilityAudit(oPage, 'room O before X move', [
+      ['heading', `Room ${roomCode}`],
+      ['StaticText', 'You are O'],
+      ['StaticText', 'X to move'],
+      ['StaticText', 'X seated'],
+    ]);
+
+    await xPage.reload({ waitUntil: 'commit' });
+    await xPage.waitForSelector('#room-game', { timeout: timeoutMs });
+    await waitForHtmx(xPage);
+    await waitForText(xPage, 'You are X');
+    await waitForText(xPage, 'O seated');
+    await assertRoomMoveControlCount(xPage, 'room X after O claim refresh', 81);
+
+    const watcherPage = await newRoomPage('room watcher');
+    await watcherPage.goto(roomUrl, { waitUntil: 'commit' });
+    await watcherPage.waitForSelector('#room-game', { timeout: timeoutMs });
+    await waitForHtmx(watcherPage);
+    await waitForText(watcherPage, 'Watching');
+    await waitForText(watcherPage, 'X to move');
+    await assertRoomShell(watcherPage, 'room watcher before X move');
+    await assertRoomMoveControlCount(watcherPage, 'room watcher before X move', 0);
+
+    await playMove(xPage, 0, 0, 1);
+    await waitForText(xPage, 'O to move');
+    await assertRoomMarkCount(xPage, 'room X after first move', 1);
+    await assertRoomMoveControlCount(xPage, 'room X after first move', 0);
+
+    await oPage.reload({ waitUntil: 'commit' });
+    await oPage.waitForSelector('#room-game', { timeout: timeoutMs });
+    await waitForHtmx(oPage);
+    await waitForText(oPage, 'O to move');
+    await assertRoomMarkCount(oPage, 'room O after X move refresh', 1);
+    await assertRoomMoveControlCount(oPage, 'room O after X move refresh', 8);
+    await assertAccessibilityAudit(oPage, 'room O after X move refresh', [
+      ['heading', `Room ${roomCode}`],
+      ['StaticText', 'You are O'],
+      ['StaticText', 'O to move'],
+      ['button', 'Play O in the top left board, top square'],
+    ]);
+
+    await watcherPage.reload({ waitUntil: 'commit' });
+    await watcherPage.waitForSelector('#room-game', { timeout: timeoutMs });
+    await waitForHtmx(watcherPage);
+    await waitForText(watcherPage, 'O to move');
+    await assertRoomMarkCount(watcherPage, 'room watcher after X move refresh', 1);
+    await assertRoomMoveControlCount(watcherPage, 'room watcher after X move refresh', 0);
+    await assertAccessibilityAudit(watcherPage, 'room watcher after X move refresh', [
+      ['heading', `Room ${roomCode}`],
+      ['StaticText', 'Watching'],
+      ['StaticText', 'O to move'],
+      ['StaticText', 'X seated'],
+      ['StaticText', 'O seated'],
+    ]);
+
+    assert(failures.length === 0, `room multi-context browser failures:\n${failures.join('\n')}`);
+  } finally {
+    await Promise.all(contexts.map((context) => context.close()));
+  }
+}
+
 async function smokeViewport(browser, viewport) {
   const baselines = screenshotBaselines[viewport.name] ?? {};
   const context = await browser.newContext({
@@ -1002,6 +1148,7 @@ async function smokeViewport(browser, viewport) {
   await assertAccessibilityAudit(page, viewport.name, [
     ['heading', 'Ultimate Tic Tac Toe'],
     ['button', 'Start a new game'],
+    ['button', 'Create room'],
     ['button', 'Start'],
     ['textbox', 'X player name'],
     ['textbox', 'O player name'],
@@ -1261,7 +1408,8 @@ async function smokeGameOverDialog(browser) {
   await waitForText(page, 'X wins!');
   assert((await page.locator('#game-over-title').innerText()).includes('X wins!'), 'game-over dialog title is wrong');
   assert((await page.locator('#game-over-detail').innerText()).includes('played X'), 'game-over dialog detail is missing');
-  assert(await page.locator('.reset-button').evaluate((button) => button.tabIndex === -1), 'background reset button stayed in tab order');
+  assert(await page.locator('.reset-form .reset-button').evaluate((button) => button.tabIndex === -1), 'background reset button stayed in tab order');
+  assert(await page.locator('.room-start-form .reset-button').evaluate((button) => button.tabIndex === -1), 'background create-room button stayed in tab order');
   await assertAccessibilityAudit(page, 'game-over dialog', [
     ['dialog', 'X wins!'],
     ['heading', 'X wins!'],
@@ -1323,10 +1471,11 @@ async function main() {
     await smokeComputerOpponent(browser);
     await smokeEasyComputerOpponent(browser);
     await smokeHardComputerOpponent(browser);
+    await smokeRoomMultiContext(browser);
     await smokeGameOverDialog(browser);
     await smokeHttpBackend('hunchentoot');
 
-    console.log(`Browser smoke passed for ${viewports.map((viewport) => viewport.name).join(', ')}, legal notices, computer opponents, game-over dialog, and backend probes.`);
+    console.log(`Browser smoke passed for ${viewports.map((viewport) => viewport.name).join(', ')}, legal notices, computer opponents, room multi-context flow, game-over dialog, and backend probes.`);
   } catch (error) {
     if (logs.length > 0) {
       console.error('Recent server output:');

@@ -18,9 +18,8 @@
 (defparameter *games-path* "/games")
 
 (defparameter *current-game-path* "/games/current")
-
 (defparameter *current-game-moves-path* "/games/current/moves")
-
+(defparameter *rooms-path* "/rooms")
 (defparameter *legal-notices-path* "/legal")
 
 (defparameter *health-path* "/health")
@@ -45,6 +44,8 @@
 
 (defparameter *session-state-lock*
   (bordeaux-threads:make-lock "ultimate-tic-tac-toe-session-state"))
+
+(defparameter *room-repository* (make-memory-room-repository))
 
 (defparameter *board-position-labels*
   #("Top left"
@@ -181,6 +182,37 @@
 (defun (setf current-session-value) (value key)
   (setf (gethash key (request-session)) value))
 
+(defun session-equal-table (key)
+  (or (current-session-value key)
+      (setf (current-session-value key)
+            (make-hash-table :test #'equal))))
+
+(defun room-session-token (code)
+  (let ((tokens (current-session-value :room-tokens)))
+    (when tokens
+      (gethash code tokens))))
+
+(defun ensure-room-session-token (code)
+  (let ((tokens (session-equal-table :room-tokens)))
+    (or (gethash code tokens)
+        (setf (gethash code tokens) (random-token)))))
+
+(defun room-session-notices ()
+  (session-equal-table :room-notices))
+
+(defun remember-room-notice (code notice)
+  (when notice
+    (setf (gethash code (room-session-notices)) notice)))
+
+(defun pop-room-notice (code)
+  (let ((notices (current-session-value :room-notices)))
+    (when notices
+      (multiple-value-bind (notice presentp)
+          (gethash code notices)
+        (when presentp
+          (remhash code notices))
+        notice))))
+
 (defun random-token ()
   (ironclad:byte-array-to-hex-string
    (ironclad:random-data 32)))
@@ -231,6 +263,17 @@
             :action ,path
             :hx-post ,path
             :hx-target "#game"
+            :hx-swap "outerHTML"
+       (emit-csrf-input)
+       ,@body)))
+
+(defmacro with-room-post-form ((path &rest attributes) &body body)
+  `(spinneret:with-html
+     (:form ,@attributes
+            :method "post"
+            :action ,path
+            :hx-post ,path
+            :hx-target "#room-game"
             :hx-swap "outerHTML"
        (emit-csrf-input)
        ,@body)))
@@ -387,6 +430,29 @@
 
 (defun csrf-parameter-valid-p (params)
   (csrf-token-valid-p (form-parameter params "csrf-token")))
+
+(defun route-parameter (params key)
+  (cdr (assoc key params :test #'eql)))
+
+(defun room-path (code)
+  (format nil "/rooms/~A" code))
+
+(defun room-game-path (code)
+  (format nil "/rooms/~A/game" code))
+
+(defun room-seat-path (code mark)
+  (format nil "/rooms/~A/seats/~A" code (string-downcase (player-label mark))))
+
+(defun room-moves-path (code)
+  (format nil "/rooms/~A/moves" code))
+
+(defun request-room-code (params)
+  (let ((code (route-parameter params :code)))
+    (when code
+      (string-upcase code))))
+
+(defun parse-room-revision (value)
+  (parse-index value))
 
 (defun respond-after-post (game &key notice)
   (if (htmx-request-p)
@@ -600,6 +666,17 @@
                :type "submit"
                "Start"))))
 
+(defun emit-create-room-form (&key button-tabindex)
+  (spinneret:with-html
+    (:form :class "room-start-form"
+           :method "post"
+           :action *rooms-path*
+      (emit-csrf-input)
+      (:button :class "reset-button"
+               :type "submit"
+               :tabindex button-tabindex
+               "Create room"))))
+
 (defun player-summary-active-p (game mark)
   (let ((winner (game-winner game)))
     (if winner
@@ -664,7 +741,9 @@
     (:o (format nil "~A played O." (player-name :o)))
     (:draw "No more winning lines are available.")))
 
-(defun emit-game-over-dialog (game)
+(defun emit-game-over-dialog (game &key (action-path *games-path*)
+                                       (button-label "New game")
+                                       htmx-target)
   (when (game-over-p game)
     (spinneret:with-html
       (:div :class "game-over-modal"
@@ -679,11 +758,17 @@
           (:p :class "dialog-detail"
               :id "game-over-detail"
             (game-over-detail game))
-          (with-game-post-form (*games-path* :class "dialog-actions")
+          (:form :class "dialog-actions"
+                 :method "post"
+                 :action action-path
+                 :hx-post (when htmx-target action-path)
+                 :hx-target htmx-target
+                 :hx-swap (when htmx-target "outerHTML")
+            (emit-csrf-input)
             (:button :class "dialog-button"
                      :type "submit"
                      :autofocus t
-                     "New game")))))))
+                     button-label)))))))
 
 (defun emit-game-fragment (game &key notice)
   (spinneret:with-html
@@ -702,12 +787,15 @@
                    :aria-hidden "true")
             (:div :class "title-block"
               (:h1 "Ultimate Tic Tac Toe")))
-          (with-game-post-form (*games-path* :class "reset-form")
-            (:button :class "reset-button"
-                     :type "submit"
-                     :tabindex (when (game-over-p game) -1)
-                     :aria-label "Start a new game"
-                     "New game")))
+          (:div :class "topbar-actions"
+            (with-game-post-form (*games-path* :class "reset-form")
+              (:button :class "reset-button"
+                       :type "submit"
+                       :tabindex (when (game-over-p game) -1)
+                       :aria-label "Start a new game"
+                       "New game"))
+            (emit-create-room-form :button-tabindex (when (game-over-p game)
+                                                     -1))))
         (:div :class "status-row"
           (emit-turn-card game)
           (:div :class "target-card"
@@ -728,11 +816,170 @@
         (:div :class "macro-board"
           (loop for board below +board-count+
                 do (emit-local-board game board))))
-      (emit-game-over-dialog game))))
+      (emit-game-over-dialog game
+                             :action-path *games-path*
+                             :button-label "New game"
+                             :htmx-target "#game"))))
 
 (defun render-game-fragment (game &key notice)
   (spinneret:with-html-string
     (emit-game-fragment game :notice notice)))
+
+(defun room-role-label (view)
+  (if (eql (room-view-role view) :player)
+      (format nil "You are ~A" (player-label (room-view-mark view)))
+      "Watching"))
+
+(defun room-player-may-move-p (view)
+  (let ((game (room-view-game view)))
+    (and (eql (room-view-role view) :player)
+         (not (game-over-p game))
+         (eql (room-view-mark view)
+              (game-next-player game)))))
+
+(defun emit-room-seat-control (view mark)
+  (let ((code (room-view-code view)))
+    (spinneret:with-html
+      (cond
+        ((eql mark (room-view-mark view))
+         (spinneret:with-html
+           (:span :class (css-classes "room-seat"
+                                      (format nil "is-~(~A~)" (player-label mark)))
+                  (format nil "You are ~A" (player-label mark)))))
+        ((room-view-seat-open-p view mark)
+         (with-room-post-form ((room-seat-path code mark) :class "room-seat-form")
+           (:button :class "room-seat-button"
+                    :type "submit"
+             (format nil "Claim ~A" (player-label mark)))))
+        (t
+         (spinneret:with-html
+           (:span :class (css-classes "room-seat"
+                                      (format nil "is-~(~A~)" (player-label mark)))
+                  (format nil "~A seated" (player-label mark)))))))))
+
+(defun emit-room-seat-controls (view)
+  (spinneret:with-html
+    (:div :class "room-seats"
+      (emit-room-seat-control view :x)
+      (emit-room-seat-control view :o))))
+
+(defun room-cell-aria-label (game board cell)
+  (format nil "Play ~A in the ~A board, ~A square"
+          (player-label (game-next-player game))
+          (grid-position-aria-label board)
+          (grid-position-aria-label cell)))
+
+(defun emit-room-cell (view board cell)
+  (let* ((game (room-view-game view))
+         (mark (mark-at game board cell))
+         (legal-p (legal-move-p game board cell))
+         (control-p (and legal-p (room-player-may-move-p view))))
+    (spinneret:with-html
+      (:div :class (css-classes "micro-cell"
+                                (when mark "is-filled")
+                                (when control-p "is-playable"))
+        (cond
+          (mark
+           (emit-mark mark))
+          (control-p
+           (with-room-post-form ((room-moves-path (room-view-code view))
+                                 :class "cell-form")
+             (:input :type "hidden"
+                     :name "board"
+                     :value board)
+             (:input :type "hidden"
+                     :name "cell"
+                     :value cell)
+             (:input :type "hidden"
+                     :name "revision"
+                     :value (room-view-revision view))
+             (:button :class "cell-button"
+                      :type "submit"
+                      :aria-label (room-cell-aria-label game board cell)
+               (:span :class "cell-dot"
+                      :aria-hidden "true"))))
+          (t
+           (spinneret:with-html
+             (:span :class "cell-blank"
+                    :aria-hidden "true"))))))))
+
+(defun emit-room-local-board (view board)
+  (let* ((game (room-view-game view))
+         (outcome (board-outcome game board))
+         (available-p (available-board-p game board))
+         (active-board (game-active-board game))
+         (active-p (and active-board (= board active-board))))
+    (spinneret:with-html
+      (:section :class (css-classes "local-board"
+                                    (when available-p "is-available")
+                                    (when (and available-p (null active-board))
+                                      "is-choice")
+                                    (when active-p "is-active")
+                                    (when (eql outcome :x) "is-won-x")
+                                    (when (eql outcome :o) "is-won-o")
+                                    (when (eql outcome :draw) "is-draw")
+                                    (when (global-winning-board-p game board)
+                                      "is-global-win-board"))
+                :aria-label (format nil "Board ~D, ~A"
+                                    (1+ board)
+                                    (outcome-label outcome))
+        (:div :class "micro-grid"
+          (loop for cell below +board-count+
+                do (emit-room-cell view board cell))
+          (when (player-p outcome)
+            (spinneret:with-html
+              (:img :class (css-classes "board-win-glyph"
+                                        (when (eql outcome :x) "win-x")
+                                        (when (eql outcome :o) "win-o"))
+                    :src (mark-asset outcome)
+                    :alt ""
+                    :aria-hidden "true"))))))))
+
+(defun emit-room-game-fragment (view &key notice)
+  (let ((game (room-view-game view)))
+    (spinneret:with-html
+      (:section :id "room-game"
+                :class (css-classes "game-shell"
+                                    "room-shell"
+                                    (when (and (null (game-winner game))
+                                               (null (game-active-board game)))
+                                      "is-any-board")
+                                    (when (plusp (game-move-count game))
+                                      "is-started")
+                                    (when (game-over-p game) "is-over"))
+        (:header :class "game-header"
+          (:div :class "topbar"
+            (:div :class "brand-lockup"
+              (:span :class "brand-mark"
+                     :aria-hidden "true")
+              (:div :class "title-block"
+                (:h1 (format nil "Room ~A" (room-view-code view)))
+                (:p :class "room-role" (room-role-label view)))))
+          (:div :class "status-row"
+            (emit-turn-card game)
+            (:div :class "target-card"
+              (:span :class "status-label" "Target")
+              (:strong (target-label game))))
+          (emit-status-announcement game)
+          (emit-room-seat-controls view))
+        (emit-confetti game)
+        (when notice
+          (spinneret:with-html
+            (:p :class "notice"
+                :role "status"
+                :aria-live "polite"
+                notice)))
+        (:div :class "play-layout"
+          (:div :class "macro-board"
+            (loop for board below +board-count+
+                  do (emit-room-local-board view board))))
+        (emit-game-over-dialog game
+                               :action-path *rooms-path*
+                               :button-label "New room")))))
+
+(defun render-room-game-fragment (view &key notice)
+  (spinneret:with-html-string
+    (emit-room-game-fragment view :notice notice)))
 
 (defun emit-footer-separator ()
   (spinneret:with-html
@@ -767,6 +1014,14 @@
    (render-game-fragment game :notice notice)
    (spinneret:with-html-string
      (emit-page-footer :game game :out-of-band t))))
+
+(defun render-room-htmx-response (view &key notice)
+  (let ((game (room-view-game view)))
+    (concatenate
+     'string
+     (render-room-game-fragment view :notice notice)
+     (spinneret:with-html-string
+       (emit-page-footer :game game :out-of-band t)))))
 
 (defun render-legal-notices-page ()
   (concatenate
@@ -841,6 +1096,140 @@
          (:main :class "app"
            (emit-game-fragment game :notice notice)
            (emit-page-footer :game game)))))))
+
+(defun render-room-page (view &key notice)
+  (let ((game (room-view-game view)))
+    (concatenate
+     'string
+     "<!doctype html>"
+     (spinneret:with-html-string
+       (:html :lang "en"
+         (:head
+           (:meta :charset "utf-8")
+           (:meta :name "viewport"
+                  :content "width=device-width, initial-scale=1")
+           (:title (format nil "Room ~A - Ultimate Tic Tac Toe"
+                           (room-view-code view)))
+           (:link :rel "icon"
+                  :href "/icon.svg"
+                  :type "image/svg+xml")
+           (:link :rel "stylesheet"
+                  :href "/style.css")
+           (emit-htmx-config)
+           (:script :src "/htmx.min.js"
+                    :defer t)
+           (:script :src "/app.js"
+                    :defer t))
+         (:body
+           (:main :class "app"
+             (emit-room-game-fragment view :notice notice)
+             (emit-page-footer :game game))))))))
+
+(defun room-rejection-notice (rejection)
+  (ecase (room-rejected-reason rejection)
+    (:room-not-found "That room was not found.")
+    (:invalid-seat "That seat was not understood.")
+    (:missing-token "Reload the room and try again.")
+    (:already-seated "This browser is already seated in the room.")
+    (:seat-occupied "That seat is already taken.")
+    (:watcher "Watchers cannot play moves.")
+    (:stale-revision "The room changed. Review the latest board and try again.")
+    (:wrong-turn "It is not your turn.")
+    ((:invalid-board :invalid-cell) "That move was not understood.")
+    (:game-over "The game is already over.")
+    (:closed-board "That board is already complete.")
+    (:wrong-board "That move belongs in the target board.")
+    (:occupied-cell "That square is no longer available.")))
+
+(defun room-view-for-request (code)
+  (view-room *room-repository* code (room-session-token code)))
+
+(defun room-post-response (code view &key notice)
+  (if (htmx-request-p)
+      (html-response (render-room-htmx-response view :notice notice))
+      (progn
+        (remember-room-notice code notice)
+        (redirect-response (room-path code)))))
+
+(defun room-page-handler (params)
+  (let ((code (request-room-code params)))
+    (multiple-value-bind (view foundp)
+        (and code (room-view-for-request code))
+      (if foundp
+          (html-response
+           (render-room-page view :notice (pop-room-notice code)))
+          (not-found-response)))))
+
+(defun room-game-handler (params)
+  (let ((code (request-room-code params)))
+    (multiple-value-bind (view foundp)
+        (and code (room-view-for-request code))
+      (if foundp
+          (html-response (render-room-game-fragment view))
+          (not-found-response)))))
+
+(defun rooms-handler (params)
+  (if (csrf-parameter-valid-p params)
+      (let ((view (create-room *room-repository*)))
+        (redirect-response (room-path (room-view-code view))))
+      (reject-csrf-token)))
+
+(defun room-seat-handler (params)
+  (if (csrf-parameter-valid-p params)
+      (let* ((code (request-room-code params))
+             (mark (parse-player-mark (route-parameter params :mark))))
+        (if code
+            (multiple-value-bind (view acceptedp rejection)
+                (claim-seat *room-repository*
+                            code
+                            mark
+                            (ensure-room-session-token code))
+              (cond
+                ((null view)
+                 (not-found-response))
+                (acceptedp
+                 (room-post-response code view))
+                (t
+                 (room-post-response
+                  code
+                  view
+                  :notice (room-rejection-notice rejection)))))
+            (not-found-response)))
+      (reject-csrf-token)))
+
+(defun room-move-handler (params)
+  (if (csrf-parameter-valid-p params)
+      (let* ((code (request-room-code params))
+             (board-index (parse-index (form-parameter params "board")))
+             (cell-index (parse-index (form-parameter params "cell")))
+             (revision (parse-room-revision (form-parameter params "revision"))))
+        (cond
+          ((null code)
+           (not-found-response))
+          ((not (and board-index cell-index revision))
+           (multiple-value-bind (view foundp)
+               (room-view-for-request code)
+             (if foundp
+                 (room-post-response code view
+                                     :notice "That move was not understood.")
+                 (not-found-response))))
+          (t
+           (multiple-value-bind (view acceptedp rejection)
+               (play-room-move *room-repository*
+                               code
+                               (room-session-token code)
+                               revision
+                               board-index
+                               cell-index)
+             (cond
+               ((null view)
+                (not-found-response))
+               (acceptedp
+                (room-post-response code view))
+               (t
+                (room-post-response code view
+                                    :notice (room-rejection-notice rejection))))))))
+      (reject-csrf-token)))
 
 (defun home-handler (params)
   (declare (ignore params))
@@ -960,6 +1349,11 @@
            (list :get *health-path* #'health-handler)
            (list :get *version-path* #'version-handler)
            (list :get *current-game-path* #'current-game-handler)
+           (list :post *rooms-path* #'rooms-handler)
+           (list :get "/rooms/:code/game" #'room-game-handler)
+           (list :get "/rooms/:code" #'room-page-handler)
+           (list :post "/rooms/:code/seats/:mark" #'room-seat-handler)
+           (list :post "/rooms/:code/moves" #'room-move-handler)
            (list :post *games-path* #'games-handler)
            (list :post *current-game-moves-path* #'move-handler)
            (list :post "/move" #'move-handler)

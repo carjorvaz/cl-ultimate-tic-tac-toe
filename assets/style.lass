@@ -159,6 +159,12 @@
   :justify-content "space-between"
   :gap "14px"
   :min-width "0")
+(".topbar-actions"
+  :display "flex"
+  :align-items "center"
+  :justify-content "flex-end"
+  :gap "8px"
+  :flex-wrap "wrap")
 (".brand-lockup"
   :display "flex"
   :align-items "center"
@@ -203,7 +209,7 @@
   :font-size "clamp(1.34rem, 2.1vw, 1.72rem)"
   :line-height "1.02"
   :letter-spacing "0")
-(".reset-form, .dialog-actions"
+(".reset-form, .room-start-form, .dialog-actions"
   :flex "0 0 auto"
   :margin "0")
 (".reset-button, .players-button, .dialog-button"

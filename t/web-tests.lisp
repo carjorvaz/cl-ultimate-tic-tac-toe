@@ -23,11 +23,10 @@
     (when set-cookie
       (subseq set-cookie 0 (position #\; set-cookie)))))
 
-(defun response-csrf-token (response)
-  (let* ((body (response-body response))
-         (name-position (or (search "name=csrf-token" body)
-                            (search "name=\"csrf-token\"" body)
-                            (search "name='csrf-token'" body))))
+(defun input-value-after-name (body name)
+  (let ((name-position (or (search (format nil "name=~A" name) body)
+                           (search (format nil "name=\"~A\"" name) body)
+                           (search (format nil "name='~A'" name) body))))
     (when name-position
       (let ((value-position (search "value=" body :start2 name-position)))
         (when value-position
@@ -45,6 +44,12 @@
                                      body
                                      :start value-start))))
               (subseq body value-start value-end))))))))
+
+(defun response-csrf-token (response)
+  (input-value-after-name (response-body response) "csrf-token"))
+
+(defun response-input-value (response name)
+  (input-value-after-name (response-body response) name))
 
 (defun csrf-body (token body)
   (format nil "csrf-token=~A~@[&~A~]" token body))
@@ -66,6 +71,17 @@
         do (incf count)
            (setf start (+ position (length needle)))
         finally (return count)))
+
+(defun room-code-from-location (location)
+  (let ((prefix "/rooms/"))
+    (when (and location (string-starts-with-p prefix location))
+      (subseq location (length prefix)))))
+
+(defparameter +x-global-win-moves+
+  '((0 0) (0 1) (1 2) (2 0) (0 3) (3 4)
+    (4 5) (5 0) (0 6) (6 1) (1 0) (4 1)
+    (1 3) (3 1) (1 6) (6 2) (2 3) (3 2)
+    (2 4) (4 2) (2 5)))
 
 (defparameter +test-csrf-token+
   "0000000000000000000000000000000000000000000000000000000000000000")
@@ -388,6 +404,152 @@
       (assert-security-headers response)
       (is (not (search "hunchentoot-session" (response-body response)))))))
 
+(test room-create-redirects-to-shareable-room-page
+  (with-test-server (port)
+    (let* ((home (http-request port "GET" "/"))
+           (cookie (response-cookie home))
+           (token (response-csrf-token home))
+           (create (http-request port "POST" "/rooms"
+                                 :cookie cookie
+                                 :body (csrf-body token "")))
+           (location (header-value create "Location"))
+           (code (room-code-from-location location))
+           (room (and location
+                      (http-request port "GET" location :cookie cookie))))
+      (is (not (null cookie)))
+      (is (not (null token)))
+      (is (= 303 (response-status create)))
+      (is (not (null code)))
+      (is (= 200 (response-status room)))
+      (is (string-starts-with-p "<!doctype html>" (response-body room)))
+      (is (search "Room" (response-body room)))
+      (is (search code (response-body room)))
+      (is (search "Watching" (response-body room)))
+      (is (search "Claim X" (response-body room)))
+      (is (search "Claim O" (response-body room)))
+      (is (response-csrf-token room))
+      (is (not (search "hunchentoot-session" (response-body room)))))))
+
+(test room-seats-authorize-players-and-watchers-cannot-move
+  (with-test-server (port)
+    (let* ((home (http-request port "GET" "/"))
+           (x-cookie (response-cookie home))
+           (x-csrf (response-csrf-token home))
+           (create (http-request port "POST" "/rooms"
+                                 :cookie x-cookie
+                                 :body (csrf-body x-csrf "")))
+           (room-path (header-value create "Location"))
+           (code (room-code-from-location room-path))
+           (x-seat (http-request port "POST"
+                                 (format nil "/rooms/~A/seats/x" code)
+                                 :cookie x-cookie
+                                 :body (csrf-body x-csrf "")))
+           (o-entry (http-request port "GET" room-path))
+           (o-cookie (response-cookie o-entry))
+           (o-csrf (response-csrf-token o-entry))
+           (o-seat (http-request port "POST"
+                                 (format nil "/rooms/~A/seats/o" code)
+                                 :cookie o-cookie
+                                 :body (csrf-body o-csrf "")))
+           (watch-home (http-request port "GET" "/"))
+           (watch-cookie (response-cookie watch-home))
+           (watch-csrf (response-csrf-token watch-home))
+           (watch-entry (http-request port "GET" room-path
+                                      :cookie watch-cookie))
+           (watch-move (http-request port "POST"
+                                     (format nil "/rooms/~A/moves" code)
+                                     :cookie watch-cookie
+                                     :body (csrf-body watch-csrf
+                                                      "board=0&cell=0&revision=2")
+                                     :headers '(("HX-Request" . "true"))))
+           (x-page (http-request port "GET" room-path :cookie x-cookie))
+           (x-revision (response-input-value x-page "revision"))
+           (x-move (http-request port "POST"
+                                 (format nil "/rooms/~A/moves" code)
+                                 :cookie x-cookie
+                                 :body (csrf-body x-csrf
+                                                  (format nil "board=0&cell=0&revision=~A"
+                                                          x-revision))
+                                 :headers '(("HX-Request" . "true"))))
+           (watch-follow (http-request port "GET" room-path
+                                       :cookie watch-cookie)))
+      (is (= 303 (response-status create)))
+      (is (= 303 (response-status x-seat)))
+      (is (= 303 (response-status o-seat)))
+      (is (search "You are X" (response-body x-page)))
+      (is (search "action=\"/rooms/" (response-body x-page)))
+      (is (search "/moves" (response-body x-page)))
+      (is (not (search "/moves" (response-body watch-entry))))
+      (is (= 200 (response-status watch-move)))
+      (is (search "Watchers cannot play moves." (response-body watch-move)))
+      (is (= 0 (count-substrings "mark mark-x" (response-body watch-move))))
+      (is (= 200 (response-status x-move)))
+      (is (search "O to move" (response-body x-move)))
+      (is (= 1 (count-substrings "mark mark-x" (response-body x-move))))
+      (is (search "Watching" (response-body watch-follow)))
+      (is (search "O to move" (response-body watch-follow)))
+      (is (= 1 (count-substrings "mark mark-x"
+                                 (response-body watch-follow))))
+      (is (not (search "/moves" (response-body watch-follow)))))))
+
+(test room-game-over-htmx-response-uses-room-action-and-updates-footer
+  (with-test-server (port)
+    (let* ((home (http-request port "GET" "/"))
+           (x-cookie (response-cookie home))
+           (x-csrf (response-csrf-token home))
+           (create (http-request port "POST" "/rooms"
+                                 :cookie x-cookie
+                                 :body (csrf-body x-csrf "")))
+           (room-path (header-value create "Location"))
+           (code (room-code-from-location room-path))
+           (x-seat (http-request port "POST"
+                                 (format nil "/rooms/~A/seats/x" code)
+                                 :cookie x-cookie
+                                 :body (csrf-body x-csrf "")))
+           (o-entry (http-request port "GET" room-path))
+           (o-cookie (response-cookie o-entry))
+           (o-csrf (response-csrf-token o-entry))
+           (o-seat (http-request port "POST"
+                                 (format nil "/rooms/~A/seats/o" code)
+                                 :cookie o-cookie
+                                 :body (csrf-body o-csrf "")))
+           (last-move nil))
+      (labels ((post-move (cookie csrf board cell)
+                 (let* ((page (http-request port "GET" room-path
+                                            :cookie cookie))
+                        (revision (response-input-value page "revision")))
+                   (is (not (null revision)))
+                   (http-request port "POST"
+                                 (format nil "/rooms/~A/moves" code)
+                                 :cookie cookie
+                                 :body (csrf-body
+                                        csrf
+                                        (format nil "board=~D&cell=~D&revision=~A"
+                                                board cell revision))
+                                 :headers '(("HX-Request" . "true"))))))
+        (loop for (board cell) in +x-global-win-moves+
+              for index from 0
+              do (setf last-move
+                       (if (evenp index)
+                           (post-move x-cookie x-csrf board cell)
+                           (post-move o-cookie o-csrf board cell)))))
+      (is (= 303 (response-status create)))
+      (is (= 303 (response-status x-seat)))
+      (is (= 303 (response-status o-seat)))
+      (is (= 200 (response-status last-move)))
+      (is (search "id=room-game" (response-body last-move)))
+      (is (search "X wins!" (response-body last-move)))
+      (is (search "New room" (response-body last-move)))
+      (is (or (search "action=\"/rooms\"" (response-body last-move))
+              (search "action=/rooms" (response-body last-move))))
+      (is (not (search "action=\"/games\"" (response-body last-move))))
+      (is (not (search "hx-post=\"/rooms\"" (response-body last-move))))
+      (is (search "site-footer" (response-body last-move)))
+      (is (search "hx-swap-oob" (response-body last-move)))
+      (is (search "aria-hidden" (response-body last-move)))
+      (is (search "tabindex=-1" (response-body last-move)))
+      (is (not (search "<!doctype html>" (response-body last-move)))))))
+
 (test operational-routes-render-status-without-sessions
   (with-test-server (port)
     (let ((health (http-request port "GET" "/health"))
@@ -639,6 +801,63 @@
       (is (search "O to move" (response-body follow)))
       (is (= 1 (count-substrings "mark mark-x"
                                  (response-body follow)))))))
+
+(test room-post-routes-reject-missing-csrf-token
+  (with-test-server (port)
+    (let* ((home (http-request port "GET" "/"))
+           (cookie (response-cookie home))
+           (token (response-csrf-token home))
+           (missing-create (http-request port "POST" "/rooms"
+                                         :cookie cookie
+                                         :body ""))
+           (wrong-create (http-request port "POST" "/rooms"
+                                       :cookie cookie
+                                       :body (csrf-body (wrong-csrf-token token) "")))
+           (create (http-request port "POST" "/rooms"
+                                 :cookie cookie
+                                 :body (csrf-body token "")))
+           (room-path (header-value create "Location"))
+           (code (room-code-from-location room-path))
+           (missing-seat (http-request port "POST"
+                                       (format nil "/rooms/~A/seats/x" code)
+                                       :cookie cookie
+                                       :body ""))
+           (wrong-seat (http-request port "POST"
+                                     (format nil "/rooms/~A/seats/x" code)
+                                     :cookie cookie
+                                     :body (csrf-body (wrong-csrf-token token) "")))
+           (valid-seat (http-request port "POST"
+                                     (format nil "/rooms/~A/seats/x" code)
+                                     :cookie cookie
+                                     :body (csrf-body token "")))
+           (x-page (http-request port "GET" room-path :cookie cookie))
+           (revision (response-input-value x-page "revision"))
+           (missing-move (http-request port "POST"
+                                       (format nil "/rooms/~A/moves" code)
+                                       :cookie cookie
+                                       :body (format nil "board=0&cell=0&revision=~A" revision)
+                                       :headers '(("HX-Request" . "true"))))
+           (wrong-move (http-request port "POST"
+                                     (format nil "/rooms/~A/moves" code)
+                                     :cookie cookie
+                                     :body (csrf-body
+                                            (wrong-csrf-token token)
+                                            (format nil "board=0&cell=0&revision=~A"
+                                                    revision))
+                                     :headers '(("HX-Request" . "true"))))
+           (follow (http-request port "GET" room-path :cookie cookie)))
+      (is (not (null token)))
+      (is (= 403 (response-status missing-create)))
+      (is (= 403 (response-status wrong-create)))
+      (is (= 303 (response-status create)))
+      (is (= 403 (response-status missing-seat)))
+      (is (= 403 (response-status wrong-seat)))
+      (is (= 303 (response-status valid-seat)))
+      (is (not (null revision)))
+      (is (= 403 (response-status missing-move)))
+      (is (= 403 (response-status wrong-move)))
+      (is (search "X to move" (response-body follow)))
+      (is (= 0 (count-substrings "mark mark-x" (response-body follow)))))))
 
 (test post-routes-reject-missing-csrf-token
   (with-test-server (port)

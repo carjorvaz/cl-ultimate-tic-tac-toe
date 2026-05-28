@@ -210,6 +210,14 @@ button{
     min-width: 0;
 }
 
+.topbar-actions{
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
 .brand-lockup{
     display: flex;
     align-items: center;
@@ -270,7 +278,7 @@ h1{
     letter-spacing: 0;
 }
 
-.reset-form, .dialog-actions{
+.reset-form, .room-start-form, .dialog-actions{
     flex: 0 0 auto;
     margin: 0;
 }

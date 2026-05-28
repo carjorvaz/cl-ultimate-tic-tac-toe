@@ -1,6 +1,6 @@
 # Reliability
 
-Last reviewed: 2026-05-23
+Last reviewed: 2026-05-28
 
 Reliability in this project means every agent can boot, test, and reason about
 the app locally without hidden service dependencies. Multiplayer rooms should add
@@ -68,11 +68,13 @@ shared state without taking away that local feedback loop.
 - Use `scripts/validate-docs.lisp` for repository-harness validation.
 - Use `nix build .#` to verify the packaged app output.
 - Use `scripts/browser-smoke.mjs` for browser-driven desktop/mobile rendering,
-  HTMX swap, computer-opponent play, CSRF-form, accessibility structure,
-  accessibility-tree names and roles, color contrast, keyboard flow, modal
-  focus, screenshot regression, backend health probes, and overflow validation.
-- Extend browser smoke with independent X-player, O-player, and watcher contexts
-  when room UI lands.
+  HTMX swap, computer-opponent play, independent X-player/O-player/watcher room
+  refresh fallback, CSRF-form, accessibility structure, accessibility-tree names
+  and roles, color contrast, keyboard flow, modal focus, screenshot regression,
+  backend health probes, and overflow validation.
+- Keep browser-visible room behavior covered before persistence or SSE work is
+  treated as ready; SSE should add live observation coverage without removing the
+  refresh fallback.
 - Use `nix flake check` before treating a change as ready for CI.
 - Run the browser smoke locally before treating UI changes as ready; CI runs
   the same flow through `nix run .#browser-smoke`, with screenshot comparison

@@ -76,6 +76,7 @@
    #:room-view-role
    #:room-view-mark
    #:room-view-seat-open-p
+   #:view-room
    #:claim-seat
    #:play-room-move
    #:room-rejected
@@ -106,6 +107,19 @@
                 #:play-best-tactical-move
                 #:play-best-strategic-move
                 #:game-over-p)
+  (:import-from #:ultimate-tic-tac-toe.rooms
+                #:make-memory-room-repository
+                #:create-room
+                #:view-room
+                #:room-view-code
+                #:room-view-game
+                #:room-view-revision
+                #:room-view-role
+                #:room-view-mark
+                #:room-view-seat-open-p
+                #:claim-seat
+                #:play-room-move
+                #:room-rejected-reason)
   (:export
    #:start
    #:stop

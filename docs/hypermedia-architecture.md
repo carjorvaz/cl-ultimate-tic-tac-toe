@@ -1,6 +1,6 @@
 # Hypermedia Architecture
 
-Last reviewed: 2026-05-23
+Last reviewed: 2026-05-28
 
 Ultimate Tic Tac Toe is a server-rendered Common Lisp hypermedia app. The
 browser receives HTML representations and asks for state transitions through
@@ -38,19 +38,19 @@ The app treats HTML as its public application protocol:
   settings.
 - `POST /games/current/moves` applies a move to the current local-session game.
 
-Planned room multiplayer will extend the same HTML contract:
+Room multiplayer extends the same HTML contract:
 
-- `POST /rooms` will create a shareable room and redirect to `/rooms/:code`.
-- `GET /rooms/:code` will return the role-aware room page for the current browser
+- `POST /rooms` creates a shareable room and redirects to `/rooms/:code`.
+- `GET /rooms/:code` returns the role-aware room page for the current browser
   session.
-- `GET /rooms/:code/game` will return the room game fragment used by htmx,
-  polling, and SSE payloads.
-- `GET /rooms/:code/events` will return an optional `text/event-stream` of named
-  room-update events for observation.
-- `POST /rooms/:code/seats/:mark` will claim an open `x` or `o` seat for the
-  current browser session.
-- `POST /rooms/:code/moves` will apply a move only when the current browser
-  session owns the seat whose mark has the turn.
+- `GET /rooms/:code/game` returns the room game fragment used by htmx and manual
+  refresh fallbacks.
+- `POST /rooms/:code/seats/:mark` claims an open `x` or `o` seat for the current
+  browser session.
+- `POST /rooms/:code/moves` applies a move only when the current browser session
+  owns the seat whose mark has the turn and submitted the current room revision.
+- `GET /rooms/:code/events` is reserved for an optional future
+  `text/event-stream` of named room-update events for observation.
 
 Non-htmx `POST` requests receive a `303 See Other` redirect back to the relevant
 page. htmx `POST` requests receive a fresh game fragment and, when needed, an

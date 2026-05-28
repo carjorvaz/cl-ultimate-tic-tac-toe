@@ -158,6 +158,17 @@ room layer safe when web handlers race on seat claims or moves."
       (setf (gethash code (memory-room-repository-rooms repository)) room)
       (room-view-for-token room nil))))
 
+(defun view-room (repository code token)
+  "Return the room view for CODE as seen by TOKEN.
+
+Unknown room codes are rejected without creating rooms. A missing or unrecognized
+TOKEN receives a watcher view for existing rooms."
+  (with-repository-lock (repository)
+    (let ((room (repository-room repository code)))
+      (if room
+          (values (room-view-for-token room token) t nil)
+          (reject-room-request nil code token :room-not-found)))))
+
 (defun claim-seat (repository code mark token)
   "Claim MARK in CODE with private TOKEN.
 
