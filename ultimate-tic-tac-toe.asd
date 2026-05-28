@@ -22,6 +22,7 @@
                 :components ((:file "package")
                              (:file "rules")
                              (:file "game")
+                             (:file "rooms")
                              (:file "web")))))
 
 (asdf:defsystem "ultimate-tic-tac-toe/assets"
@@ -40,6 +41,7 @@
                 :components ((:file "package")
                              (:file "game-tests")
                              (:file "rules-tests")
+                             (:file "room-tests")
                              (:file "web-tests"))))
   :perform (asdf:test-op (operation component)
              (declare (ignore operation component))

@@ -246,15 +246,22 @@
 (defun validate-package-boundaries ()
   (dolist (package '("ULTIMATE-TIC-TAC-TOE.RULES"
                     "ULTIMATE-TIC-TAC-TOE.GAME"
+                    "ULTIMATE-TIC-TAC-TOE.ROOMS"
                     "ULTIMATE-TIC-TAC-TOE.WEB"))
     (validate-package-exists package))
   (validate-package-imports "ULTIMATE-TIC-TAC-TOE.RULES"
                             nil
                             '("ULTIMATE-TIC-TAC-TOE.GAME"
+                              "ULTIMATE-TIC-TAC-TOE.ROOMS"
                               "ULTIMATE-TIC-TAC-TOE.WEB"))
   (validate-package-imports "ULTIMATE-TIC-TAC-TOE.GAME"
                             '("ULTIMATE-TIC-TAC-TOE.RULES")
-                            '("ULTIMATE-TIC-TAC-TOE.WEB"))
+                            '("ULTIMATE-TIC-TAC-TOE.ROOMS"
+                              "ULTIMATE-TIC-TAC-TOE.WEB"))
+  (validate-package-imports "ULTIMATE-TIC-TAC-TOE.ROOMS"
+                            '("ULTIMATE-TIC-TAC-TOE.GAME")
+                            '("ULTIMATE-TIC-TAC-TOE.RULES"
+                              "ULTIMATE-TIC-TAC-TOE.WEB"))
   (validate-package-imports "ULTIMATE-TIC-TAC-TOE.WEB"
                             '("ULTIMATE-TIC-TAC-TOE.GAME")
                             '("ULTIMATE-TIC-TAC-TOE.RULES")))
@@ -263,6 +270,7 @@
   (validate-form-signals-absent
    "src/rules.lisp"
    :packages '("ULTIMATE-TIC-TAC-TOE.GAME"
+               "ULTIMATE-TIC-TAC-TOE.ROOMS"
                "ULTIMATE-TIC-TAC-TOE.WEB"
                "HUNCHENTOOT"
                "WOO"
@@ -283,7 +291,8 @@
 (defun validate-game-boundary ()
   (validate-form-signals-absent
    "src/game.lisp"
-   :packages '("ULTIMATE-TIC-TAC-TOE.WEB"
+   :packages '("ULTIMATE-TIC-TAC-TOE.ROOMS"
+               "ULTIMATE-TIC-TAC-TOE.WEB"
                "HUNCHENTOOT"
                "WOO"
                "CLACK"
@@ -297,6 +306,25 @@
    :symbols '("HTMX" "CONTENT-TYPE" "SET-COOKIE")
    :strings '("hx-" "style.css" "text/html" "set-cookie" "content-type")
    :reason "game state must not know about HTTP or HTML"))
+
+(defun validate-rooms-boundary ()
+  (validate-form-signals-absent
+   "src/rooms.lisp"
+   :packages '("ULTIMATE-TIC-TAC-TOE.RULES"
+               "ULTIMATE-TIC-TAC-TOE.WEB"
+               "HUNCHENTOOT"
+               "WOO"
+               "CLACK"
+               "LACK"
+               "LACK/BUILDER"
+               "NINGLE"
+               "NINGLE/APP"
+               "SPINNERET"
+               "LASS"
+               "USOCKET")
+   :symbols '("HTMX" "CONTENT-TYPE" "SET-COOKIE")
+   :strings '("hx-" "style.css" "text/html" "set-cookie" "content-type")
+   :reason "rooms coordinate game state and authorization without HTTP or HTML"))
 
 (defun validate-web-boundary ()
   (validate-form-signals-absent
@@ -496,7 +524,7 @@ const ok = true;")
 
 (defun validate-asdf-component-order ()
   (let ((form (system-form "ultimate-tic-tac-toe"))
-        (expected '("package" "rules" "game" "web")))
+        (expected '("package" "rules" "game" "rooms" "web")))
     (when form
       (let ((actual (collect-component-files (system-option form "COMPONENTS"))))
         (unless (equal expected actual)
@@ -509,6 +537,7 @@ const ok = true;")
   (validate-package-boundaries)
   (validate-rules-boundary)
   (validate-game-boundary)
+  (validate-rooms-boundary)
   (validate-web-boundary)
   (validate-javascript-scanner-self-checks)
   (validate-client-script-boundary)

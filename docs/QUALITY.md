@@ -1,14 +1,21 @@
 # Quality
 
-Last reviewed: 2026-05-16
+Last reviewed: 2026-05-23
 
 ## Current Grade
 
-A for a compact app: domain behavior, HTTP flow, session handling, concurrent
-duplicate moves, source boundaries, docs, browser behavior, accessibility
-structure, browser accessibility-tree coverage, color contrast, and
-desktop/mobile screenshot regression are tested. The remaining accessibility
-gap is human screen-reader review.
+A for the current compact local-session app: domain behavior, HTTP flow, session
+handling, concurrent duplicate moves, source boundaries, docs, browser behavior,
+accessibility structure, browser accessibility-tree coverage, color contrast,
+and desktop/mobile screenshot regression are tested. The remaining current-app
+accessibility gap is human screen-reader review.
+
+The room domain layer is now tested for room-code creation, private X/O seat
+authority, watcher rejection, turn authorization, revision checks, game move
+rejection propagation, and immutable room views. Room HTTP routes, watcher UI,
+SSE observation, and SQLite persistence are still planned in the active
+rooms/watch/SSE/scaffold plan and should become part of this grade as those
+phases land.
 
 ## Verification Matrix
 
@@ -29,6 +36,17 @@ gap is human screen-reader review.
   architecture validation, and repository harness validation. GitHub Actions
   also runs `nix run .#browser-smoke` with screenshot comparison skipped for
   runner-portable rendering.
+- Room domain behavior: covered by `t/room-tests.lisp` for code creation,
+  private seat-token authority, watcher rejection, turn authorization,
+  revision checks, game move rejection propagation, and immutable room views.
+- Room HTTP authorization: should be covered by `t/web-tests.lisp` with separate
+  cookie jars for X, O, and watcher sessions.
+- Room browser behavior: should be covered by `scripts/browser-smoke.mjs` with
+  independent browser contexts for X player, O player, and watcher.
+- SSE behavior: should be covered by HTTP tests for event stream content type
+  and fragment shape, plus browser-smoke coverage when reliable under Playwright.
+- SQLite persistence: should be covered by tests that reopen a repository from
+  `UTTT_ROOM_DB` and prove stale duplicate writes are rejected.
 - Manual browser behavior: expected for larger UI changes beyond the smoke flow.
 - Manual screen-reader behavior: follow `docs/accessibility-review.md` when a
   human accessibility pass is needed.
@@ -36,14 +54,23 @@ gap is human screen-reader review.
 ## Quality Invariants
 
 - Tests should assert behavior, not implementation trivia.
-- Rejections should carry stable keyword reasons in the game layer.
+- Rejections should carry stable keyword reasons in the game or room layer.
 - User-facing copy belongs in the web layer.
+- Room seat authority must come from private session-held tokens, not public room
+  codes.
+- Watcher rendering must be read-only by construction, not just visually
+  disabled.
+- SSE is an observation path only; commands remain ordinary CSRF-protected form
+  posts.
 - `static/style.css` is generated from `assets/style.lass`; update the LASS
   source first, then rebuild and validate assets.
 - Lisp source files in `src/`, `t/`, and `scripts/` start with the AGPL SPDX
   header.
 - Documentation should capture decisions that would otherwise live only in a
   prompt, chat, or memory.
+- Agent-first harness and Common Lisp taste decisions belong in
+  `docs/HARNESS.md`; recurring deviations should become validators or focused
+  debt items.
 
 ## Known Gaps
 
@@ -53,3 +80,6 @@ gap is human screen-reader review.
   roles, and computed color contrast.
 - Screenshot regression is limited to the checked-in start and in-progress
   baselines for desktop and mobile viewports.
+- Room HTTP routes, watcher UI, room persistence, and SSE observation are
+  planned but not implemented. Track that work in
+  `docs/exec-plans/active/2026-05-22-rooms-watch-sse-scaffold.md`.

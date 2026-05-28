@@ -51,6 +51,36 @@
    #:play-best-strategic-move
    #:game-over-p))
 
+(defpackage #:ultimate-tic-tac-toe.rooms
+  (:use #:cl)
+  (:import-from #:ultimate-tic-tac-toe.game
+                #:+board-count+
+                #:make-game
+                #:player-p
+                #:game-cells
+                #:game-board-outcomes
+                #:game-next-player
+                #:game-active-board
+                #:game-winner
+                #:game-move-count
+                #:mark-at
+                #:play-move
+                #:move-rejected-reason)
+  (:export
+   #:make-memory-room-repository
+   #:create-room
+   #:room-view
+   #:room-view-code
+   #:room-view-game
+   #:room-view-revision
+   #:room-view-role
+   #:room-view-mark
+   #:room-view-seat-open-p
+   #:claim-seat
+   #:play-room-move
+   #:room-rejected
+   #:room-rejected-reason))
+
 (defpackage #:ultimate-tic-tac-toe.web
   (:use #:cl)
   (:import-from #:ultimate-tic-tac-toe.game

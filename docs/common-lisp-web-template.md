@@ -1,6 +1,6 @@
 # Common Lisp Web Template
 
-Last reviewed: 2026-05-16
+Last reviewed: 2026-05-23
 
 Use this document as the extraction target for future small Common Lisp web
 apps. It records the stack and repository shape this project has earned through
@@ -38,6 +38,8 @@ using small browser-native pieces where they are the simpler public contract.
 - Small vanilla JavaScript only for browser behaviors HTML cannot provide.
 - `FiveAM` for Lisp behavior tests.
 - Playwright-driven browser smoke for layout, accessibility, and screenshots.
+- Optional vendored htmx SSE extension for server-pushed hypermedia updates
+  when polling is not the right fit.
 
 Coalton is optional. Use it for a compact pure rules slice when types clarify a
 domain kernel. Keep the mutable app state and HTTP boundary in ordinary Common
@@ -58,6 +60,7 @@ A new app should start with this layout:
 ├── docs/
 │   ├── README.md
 │   ├── ARCHITECTURE.md
+│   ├── HARNESS.md
 │   ├── PRODUCT.md
 │   ├── RELIABILITY.md
 │   ├── QUALITY.md
@@ -139,6 +142,8 @@ The template is only useful if it carries the feedback loop with it:
 - `scripts/browser-smoke.mjs` drives a browser through the core flow, checks
   accessibility structure, audits accessible names and color contrast, verifies
   no unexpected external requests happen, and compares screenshot baselines.
+- `docs/HARNESS.md` records the agent-first operating model, Common Lisp taste
+  rules, and optional SSE policy that scaffold consumers should inherit.
 - `nix flake check` runs the deterministic suite expected in CI.
 
 Keep the browser smoke app-specific but the helpers reusable. The reusable
@@ -157,6 +162,8 @@ When turning this project into a starter template:
 - keep conservative security headers at the Clack boundary;
 - keep the Hunchentoot backend smoke even when Woo is the default;
 - keep docs validation from the start;
+- keep `docs/HARNESS.md` as the place for agent-first feedback loops, Common
+  Lisp taste rules, and SSE/push policy;
 - keep a manual accessibility review runbook when the app has meaningful UI;
 - remove Coalton unless the new app has a pure rules kernel that benefits from
   it;

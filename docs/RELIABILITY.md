@@ -1,9 +1,10 @@
 # Reliability
 
-Last reviewed: 2026-05-16
+Last reviewed: 2026-05-23
 
 Reliability in this project means every agent can boot, test, and reason about
-the app locally without hidden service dependencies.
+the app locally without hidden service dependencies. Multiplayer rooms should add
+shared state without taking away that local feedback loop.
 
 ## Runtime
 
@@ -20,14 +21,41 @@ the app locally without hidden service dependencies.
 - The HTTP test harness uses the Hunchentoot backend because its direct acceptor
   lifecycle makes startup failures synchronous and shutdown clean. Private
   adapter lookups stay quarantined behind `clack-hunchentoot-symbol`.
+- Startup logs should expose backend, port, version, room persistence mode, and
+  source URL without logging secrets or private seat tokens.
 
 ## State And Concurrency
 
-- Game state is stored in the Lack session.
+- Local quick-play game state is stored in the Lack session.
 - `with-current-game-locked` serializes access to the current session game.
-- Concurrent duplicate moves should produce one accepted move and one rejection,
-  preserving turn order.
-- Web handlers should return HTML without leaking backend-specific session URLs.
+- Concurrent duplicate local moves should produce one accepted move and one
+  rejection, preserving turn order.
+- Shared room state belongs behind the room repository API, not in web handlers.
+- Room updates should serialize by room code and revision so concurrent duplicate
+  room moves produce one accepted move and one rejection.
+- Room reads for rendering or SSE must not hold write locks while streaming to a
+  slow or disconnected client.
+- Web handlers should return HTML without leaking backend-specific session URLs,
+  private seat tokens, or persistence paths.
+
+## Room Persistence
+
+- Room multiplayer must work in a local development mode without external
+  services.
+- If `UTTT_ROOM_DB` is unset, the app may use an in-memory room repository for
+  development and tests.
+- If `UTTT_ROOM_DB` is set, it names the SQLite database path for durable room
+  state.
+- Database initialization should create the required schema deterministically and
+  fail loudly with actionable errors when the path cannot be opened.
+- Persist versioned room/game data rather than raw printed implementation
+  structs, so migrations and future readers have an explicit contract.
+- Seat tokens are authority-bearing secrets. Store only what the server needs to
+  verify a session's seat, never render tokens into HTML, logs, or URLs.
+- SQLite write transactions should cover seat claims and move application so
+  authorization checks and mutations stay atomic.
+- Persistence tests should prove a room can be reopened from the database and
+  that stale duplicate submissions do not corrupt the game.
 
 ## Feedback Loops
 
@@ -43,6 +71,8 @@ the app locally without hidden service dependencies.
   HTMX swap, computer-opponent play, CSRF-form, accessibility structure,
   accessibility-tree names and roles, color contrast, keyboard flow, modal
   focus, screenshot regression, backend health probes, and overflow validation.
+- Extend browser smoke with independent X-player, O-player, and watcher contexts
+  when room UI lands.
 - Use `nix flake check` before treating a change as ready for CI.
 - Run the browser smoke locally before treating UI changes as ready; CI runs
   the same flow through `nix run .#browser-smoke`, with screenshot comparison
@@ -58,4 +88,8 @@ Validate external inputs at the web boundary:
 
 - board and cell parameters become integers through `parse-index`;
 - first-player settings become keywords through `parse-player-mark`;
-- player names are trimmed and length-limited through `clean-player-name`.
+- player names are trimmed and length-limited through `clean-player-name`;
+- room codes are parsed, normalized, and rejected when malformed;
+- seat marks in URLs become `:x` or `:o` keywords through the same mark parser;
+- room move requests validate the submitted revision before calling room logic;
+- persistence paths come only from `UTTT_ROOM_DB`, never from request data.

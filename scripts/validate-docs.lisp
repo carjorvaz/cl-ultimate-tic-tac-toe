@@ -44,6 +44,7 @@
     ("docs/ARCHITECTURE.md" ("Last reviewed:" "## Components" "## Boundaries" "## Mechanical Guards"))
     ("docs/accessibility-review.md" ("Last reviewed:" "## Scope" "## Checklist" "## Recording Results" "## Result Template"))
     ("docs/common-lisp-web-template.md" ("Last reviewed:" "## Stack" "## CSS Policy" "## Verification Harness" "## Extraction Checklist"))
+    ("docs/HARNESS.md" ("Last reviewed:" "## Agent-First Harness" "## Hypermedia And Common Lisp Taste" "## SSE Policy" "## Garbage Collection"))
     ("docs/hypermedia-architecture.md" ("Last reviewed:" "## Stack" "## Contract"))
     ("docs/PRODUCT.md" ("Last reviewed:" "## Game Contract" "## Player Experience"))
     ("docs/RELIABILITY.md" ("Last reviewed:" "## Runtime" "## Feedback Loops"))
@@ -57,6 +58,7 @@
     "docs/ARCHITECTURE.md"
     "docs/accessibility-review.md"
     "docs/common-lisp-web-template.md"
+    "docs/HARNESS.md"
     "docs/hypermedia-architecture.md"
     "docs/PRODUCT.md"
     "docs/RELIABILITY.md"
@@ -121,6 +123,7 @@
                      '("ARCHITECTURE.md"
                        "accessibility-review.md"
                        "common-lisp-web-template.md"
+                       "HARNESS.md"
                        "hypermedia-architecture.md"
                        "PRODUCT.md"
                        "RELIABILITY.md"
