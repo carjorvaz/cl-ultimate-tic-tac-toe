@@ -14,9 +14,11 @@ system quickly and can lift the harness into new projects later.
 - `src/game.lisp` owns mutable game state, legality checks, move application,
   deterministic opponent move selection, and domain-level outcome updates.
 - `src/rooms.lisp` owns shareable room state, private seat-token authority,
-  watcher classification, revision checks, and serialization around room
-  mutations. It is deliberately not an HTTP or HTML layer.
-- `src/web.lisp` owns Clack responses, Lack session access, Ningle routes,
+  watcher classification, revision checks, optional SQLite persistence, and
+  serialization around room mutations. It is deliberately not an HTTP or HTML
+  layer.
+- `src/web.lisp` owns Clack responses, Lack session access, optional
+  SQLite-backed session storage for room seat authority, Ningle routes,
   Spinneret rendering, HTMX fragments, static asset serving, and request
   parsing.
 - `assets/` contains source assets, including `assets/style.lass`.

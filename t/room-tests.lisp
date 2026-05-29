@@ -169,3 +169,67 @@
     (let ((fresh-view (accept-seat repository lookup-code :x "x-token")))
       (is (string= lookup-code (room-view-code fresh-view)))
       (is (= 1 (room-view-revision fresh-view))))))
+
+(defun temporary-room-database-path ()
+  (merge-pathnames (make-pathname :name (format nil "uttt-room-~A" (gensym))
+                                  :type "sqlite3")
+                   (uiop:temporary-directory)))
+
+(defmacro with-temporary-room-database ((path) &body body)
+  `(let ((,path (temporary-room-database-path)))
+     (unwind-protect
+          (progn ,@body)
+       (when (probe-file ,path)
+         (delete-file ,path)))))
+
+(defun deterministic-sqlite-room-repository (path &rest codes)
+  (let ((maker (find-symbol "MAKE-SQLITE-ROOM-REPOSITORY"
+                            :ultimate-tic-tac-toe.rooms))
+        (remaining-codes (copy-list codes)))
+    (unless (and maker (fboundp maker))
+      (error "SQLite room repository constructor is not available."))
+    (funcall maker
+             path
+             :code-generator (lambda ()
+                               (let ((code (pop remaining-codes)))
+                                 (if code
+                                     (copy-seq code)
+                                     (error "No deterministic room codes remain.")))))))
+
+(test sqlite-room-repository-persists-room-across-reopen
+  (with-temporary-room-database (path)
+    (let* ((repository (deterministic-sqlite-room-repository path "SQL001"))
+           (created (create-room repository))
+           (code (room-view-code created)))
+      (accept-seat repository code :x "x-token")
+      (accept-seat repository code :o "o-token")
+      (let ((x-view (accept-room-move repository code "x-token" 2 0 0)))
+        (is (= 3 (room-view-revision x-view)))
+        (is (eql :x (mark-at (room-view-game x-view) 0 0))))
+      (let* ((reopened (deterministic-sqlite-room-repository path "UNUSED"))
+             (x-view (view-room reopened code "x-token")))
+        (is (= 3 (room-view-revision x-view)))
+        (is (eql :player (room-view-role x-view)))
+        (is (eql :x (room-view-mark x-view)))
+        (is (not (room-view-seat-open-p x-view :x)))
+        (is (not (room-view-seat-open-p x-view :o)))
+        (is (eql :x (mark-at (room-view-game x-view) 0 0)))
+        (is (eql :o (game-next-player (room-view-game x-view))))))))
+
+(test sqlite-room-repository-rejects-stale-move-after-reopen
+  (with-temporary-room-database (path)
+    (let* ((repository (deterministic-sqlite-room-repository path "SQL002"))
+           (code (room-view-code (create-room repository))))
+      (accept-seat repository code :x "x-token")
+      (accept-seat repository code :o "o-token")
+      (accept-room-move repository code "x-token" 2 0 0)
+      (let* ((reopened (deterministic-sqlite-room-repository path "UNUSED"))
+             (stale-view (reject-room-move :stale-revision
+                                           reopened
+                                           code
+                                           "o-token"
+                                           2
+                                           0
+                                           1)))
+        (is (= 3 (room-view-revision stale-view)))
+        (is (null (mark-at (room-view-game stale-view) 0 1)))))))

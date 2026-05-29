@@ -25,9 +25,12 @@
       "spinneret"
       "clack-handler-woo"
       "clack-handler-hunchentoot"
+      "lack-session-store-dbi"
+      "dbd-sqlite3"
       "hunchentoot"
       "bordeaux-threads"
-      "ironclad"))
+      "ironclad"
+      "sqlite"))
     ("ultimate-tic-tac-toe/assets"
      ("lass"))
     ("ultimate-tic-tac-toe/test"

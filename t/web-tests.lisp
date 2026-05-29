@@ -294,6 +294,27 @@
   `(let ((,port (start-test-server)))
      ,@body))
 
+(defun start-isolated-test-server (&key room-db)
+  (loop repeat 20
+        for port = (+ 44000 (random 1000))
+        do (handler-case
+               (progn
+                 (ultimate-tic-tac-toe.web:start :port port
+                                                 :server :hunchentoot
+                                                 :room-db room-db
+                                                 :silent t)
+                 (wait-for-test-server port)
+                 (return port))
+             (usocket:address-in-use-error () nil))
+        finally (error "Could not find a free isolated test port.")))
+
+(defmacro with-isolated-test-server ((port &key room-db) &body body)
+  `(let ((,port (start-isolated-test-server :room-db ,room-db)))
+     (unwind-protect
+          (progn ,@body)
+       (ultimate-tic-tac-toe.web:stop)
+       (setf *test-server-port* nil))))
+
 (defun concurrent-http-requests (&rest thunks)
   (let ((results (make-array (length thunks)))
         (start-p nil))
@@ -457,6 +478,66 @@
       (is (not (search "unpkg" (response-body response))))
       (assert-security-headers response)
       (is (not (search "hunchentoot-session" (response-body response)))))))
+
+(test configured-room-repository-uses-room-db-path
+  (with-temporary-room-database (path)
+    (let* ((repository
+             (ultimate-tic-tac-toe.web::configured-room-repository
+              (namestring path)))
+           (created (create-room repository))
+           (code (room-view-code created)))
+      (claim-seat repository code :x "x-token")
+      (let ((reopened
+              (ultimate-tic-tac-toe.web::configured-room-repository
+               (namestring path))))
+        (let ((view (view-room reopened code "x-token")))
+          (is (= 1 (room-view-revision view)))
+          (is (eql :x (room-view-mark view))))))))
+
+(test room-db-preserves-claimed-seat-session-across-restart
+  (with-temporary-room-database (path)
+    (let* ((room-db (namestring path))
+           (saved-cookie nil)
+           (saved-room-path nil))
+      (with-isolated-test-server (port :room-db room-db)
+        (let* ((home (http-request port "GET" "/"))
+               (cookie (response-cookie home))
+               (token (response-csrf-token home))
+               (create (http-request port "POST" "/rooms"
+                                     :cookie cookie
+                                     :body (csrf-body token "")))
+               (room-path (header-value create "Location"))
+               (code (room-code-from-location room-path))
+               (seat (http-request port "POST"
+                                   (format nil "/rooms/~A/seats/x" code)
+                                   :cookie cookie
+                                   :body (csrf-body token "")))
+               (page (http-request port "GET" room-path :cookie cookie)))
+          (is (= 303 (response-status create)))
+          (is (= 303 (response-status seat)))
+          (is (search "You are X" (response-body page)))
+          (setf saved-cookie cookie
+                saved-room-path room-path)))
+      (with-isolated-test-server (port :room-db room-db)
+        (let* ((page (http-request port "GET" saved-room-path
+                                   :cookie saved-cookie))
+               (code (room-code-from-location saved-room-path))
+               (token (response-csrf-token page))
+               (revision (response-input-value page "revision"))
+               (move (http-request port "POST"
+                                   (format nil "/rooms/~A/moves" code)
+                                   :cookie saved-cookie
+                                   :body (csrf-body
+                                          token
+                                          (format nil "board=0&cell=0&revision=~A"
+                                                  revision))))
+               (updated (http-request port "GET" saved-room-path
+                                      :cookie saved-cookie)))
+          (is (= 200 (response-status page)))
+          (is (search "You are X" (response-body page)))
+          (is (search "/moves" (response-body page)))
+          (is (= 303 (response-status move)))
+          (is (search "O to move" (response-body updated))))))))
 
 (test room-create-redirects-to-shareable-room-page
   (with-test-server (port)

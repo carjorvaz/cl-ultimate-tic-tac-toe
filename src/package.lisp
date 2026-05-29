@@ -68,6 +68,7 @@
                 #:move-rejected-reason)
   (:export
    #:make-memory-room-repository
+   #:make-sqlite-room-repository
    #:create-room
    #:room-view
    #:room-view-code
@@ -109,6 +110,7 @@
                 #:game-over-p)
   (:import-from #:ultimate-tic-tac-toe.rooms
                 #:make-memory-room-repository
+                #:make-sqlite-room-repository
                 #:create-room
                 #:view-room
                 #:room-view-code

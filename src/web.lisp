@@ -47,7 +47,74 @@
 (defparameter *session-state-lock*
   (bordeaux-threads:make-lock "ultimate-tic-tac-toe-session-state"))
 
-(defparameter *room-repository* (make-memory-room-repository))
+(defparameter *room-db-environment-variable* "UTTT_ROOM_DB")
+
+(defun nonempty-string-p (value)
+  (and value
+       (plusp (length (string-trim '(#\Space #\Tab #\Return #\Linefeed)
+                                   value)))))
+
+(defun normalized-room-database-path (value)
+  (when (nonempty-string-p value)
+    (string-trim '(#\Space #\Tab #\Return #\Linefeed) value)))
+
+(defun configured-room-database-path ()
+  (normalized-room-database-path
+   (uiop:getenv *room-db-environment-variable*)))
+
+(defun configured-room-repository (&optional (room-db (configured-room-database-path)))
+  (let ((room-db (normalized-room-database-path room-db)))
+    (if room-db
+        (make-sqlite-room-repository room-db)
+        (make-memory-room-repository))))
+
+(defun connect-sqlite-session-database (room-db)
+  (let ((connection (dbi:connect :sqlite3 :database-name room-db)))
+    (dbi:do-sql connection "pragma busy_timeout = 5000")
+    connection))
+
+(defun initialize-sqlite-session-store (room-db)
+  (let ((connection (connect-sqlite-session-database room-db)))
+    (unwind-protect
+         (dbi:do-sql connection
+                     "create table if not exists sessions (id text primary key, session_data text not null)")
+      (dbi:disconnect connection))))
+
+(defun make-sqlite-session-store (room-db)
+  (initialize-sqlite-session-store room-db)
+  (lack.session.store.dbi:make-dbi-store
+   :connector (lambda ()
+                (connect-sqlite-session-database room-db))
+   :disconnector #'dbi:disconnect))
+
+(defparameter *room-database-path* (configured-room-database-path))
+
+(defun configured-session-middleware (&optional (room-db *room-database-path*))
+  (let ((room-db (normalized-room-database-path room-db)))
+    (if room-db
+        (list :session :keep-empty nil
+              :store (make-sqlite-session-store room-db))
+        '(:session :keep-empty nil))))
+
+(defparameter *persistent-session-volatile-keys* '(:game-lock))
+
+(defun drop-persistent-session-volatile-state (env)
+  (let ((session (getf env :lack.session)))
+    (when session
+      (dolist (key *persistent-session-volatile-keys*)
+        (remhash key session)))))
+
+(defun wrap-persistent-session-state (app)
+  (lambda (env)
+    (let ((response (funcall app env)))
+      (drop-persistent-session-volatile-state env)
+      response)))
+
+(defun configured-session-cleanup-middleware (&optional (room-db *room-database-path*))
+  (when (normalized-room-database-path room-db)
+    #'wrap-persistent-session-state))
+
+(defparameter *room-repository* (configured-room-repository *room-database-path*))
 
 (defparameter *board-position-labels*
   #("Top left"
@@ -1452,7 +1519,8 @@
 (defun make-app ()
   (wrap-default-headers
    (lack:builder
-     (:session :keep-empty nil)
+     (configured-session-middleware)
+     (configured-session-cleanup-middleware)
      #'wrap-request-env
      (make-routes))))
 
@@ -1481,8 +1549,12 @@
   (initialize-clack-hunchentoot)
   (hunchentoot:start (make-clack-hunchentoot-acceptor port debug)))
 
-(defun start (&key (port 4242) (server :woo) (debug nil) silent)
+(defun start (&key (port 4242) (server :woo) (debug nil) silent
+              (room-db (configured-room-database-path)))
   (stop)
+  (let ((room-db (normalized-room-database-path room-db)))
+    (setf *room-database-path* room-db
+          *room-repository* (configured-room-repository room-db)))
   (setf *server*
         (if (eql server :hunchentoot)
             (start-hunchentoot port debug)

@@ -30,6 +30,9 @@
           clack-handler-hunchentoot
           bordeaux-threads
           ironclad
+          sqlite
+          lack-session-store-dbi
+          dbd-sqlite3
           fiveam
           usocket
         ]);

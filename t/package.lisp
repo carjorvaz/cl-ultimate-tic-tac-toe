@@ -35,6 +35,7 @@
   (:import-from #:ultimate-tic-tac-toe.rooms
                 #:make-memory-room-repository
                 #:create-room
+                #:view-room
                 #:room-view
                 #:room-view-code
                 #:room-view-game

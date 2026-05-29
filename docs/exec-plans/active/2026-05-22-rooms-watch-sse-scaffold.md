@@ -116,6 +116,7 @@ Use htmx SSE as progressive enhancement, not as the core command path.
 - 2026-05-28: Initial Phase 4 room web routes landed with `POST /rooms`, role-aware `GET /rooms/:code`, fragment `GET /rooms/:code/game`, seat-claim posts, room move posts, private session-held seat tokens, and HTTP tests for X/O/watcher cookie separation.
 - 2026-05-28: Browser multi-context room smoke landed for independent X-player, O-player, and watcher contexts through the manual refresh fallback.
 - 2026-05-29: Phase 5 SSE observation landed with local `htmx-ext-sse`, `GET /rooms/:code/events` `text/event-stream` snapshots, stable `#room-stream` -> `#room-game` swaps, same-revision `Last-Event-ID` no-op responses to preserve focus during idle reconnects, HTTP event-stream coverage, and browser smoke assertions that X/O/watcher contexts receive room updates without manual reloads.
+- 2026-05-29: Phase 3 SQLite room persistence landed with `sbclPackages.sqlite`, a versioned room row format, transactional seat/move updates, repository reopen coverage, stale duplicate rejection after reopen, and `UTTT_ROOM_DB` web-boundary selection while preserving in-memory rooms when unset.
 
 ## Decisions
 

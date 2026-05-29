@@ -37,8 +37,10 @@ nix run .
 ```
 
 The app listens on `http://127.0.0.1:4242/` by default. Set `PORT` to change
-the port, set `SERVER=hunchentoot` to use the fallback backend, and set
-`SOURCE_CODE_URL` to change the footer source link for deployed forks.
+the port, set `SERVER=hunchentoot` to use the fallback backend, set
+`SOURCE_CODE_URL` to change the footer source link for deployed forks, and set
+`UTTT_ROOM_DB=/path/to/rooms.sqlite3` to persist shareable room state and the
+seat-authority sessions in SQLite.
 Readiness and version endpoints are available at `/health` and `/version`.
 
 ## Test

@@ -10,15 +10,15 @@ accessibility structure, browser accessibility-tree coverage, color contrast,
 and desktop/mobile screenshot regression are tested. The remaining current-app
 accessibility gap is human screen-reader review.
 
-The room domain, web layer, SSE observation path, and browser smoke are now
-tested for room-code creation, private X/O seat authority, watcher rejection,
-turn authorization, revision checks, game move rejection propagation, immutable
-room views, room creation redirects, role-aware room pages, seat claims,
-watcher read-only HTTP behavior, event-stream content/fragment shape, and an
-X/O/watcher browser flow whose inactive player and watcher views update through
-the local htmx SSE path. SQLite persistence is still planned in the active
-rooms/watch/SSE/scaffold plan and should become part of this grade when it
-lands.
+The room domain, web layer, SQLite persistence path, SSE observation path, and
+browser smoke are now tested for room-code creation, private X/O seat authority,
+watcher rejection, turn authorization, revision checks, game move rejection
+propagation, immutable room views, room creation redirects, role-aware room
+pages, seat claims, watcher read-only HTTP behavior, event-stream
+content/fragment shape, durable reopen from SQLite, stale duplicate rejection
+after reopen, durable room-seat session restoration after restart, and an
+X/O/watcher browser flow whose inactive player and watcher views update
+through the local htmx SSE path.
 
 ## Verification Matrix
 
@@ -52,8 +52,10 @@ lands.
   cache/security headers, `Last-Event-ID` duplicate suppression, and room-update
   fragment shape, plus browser-smoke coverage of X/O/watcher update propagation
   and idle reconnect focus preservation under Playwright.
-- SQLite persistence: should be covered by tests that reopen a repository from
-  `UTTT_ROOM_DB` and prove stale duplicate writes are rejected.
+- SQLite persistence: covered by `t/room-tests.lisp` for repository reopen and
+  stale duplicate rejection after reopen, and by `t/web-tests.lisp` for the
+  `UTTT_ROOM_DB` configured repository/session-store path, including claimed-seat
+  session restoration across restart.
 - Manual browser behavior: expected for larger UI changes beyond the smoke flow.
 - Manual screen-reader behavior: follow `docs/accessibility-review.md` when a
   human accessibility pass is needed.
@@ -87,5 +89,7 @@ lands.
   roles, and computed color contrast.
 - Screenshot regression is limited to the checked-in start and in-progress
   baselines for desktop and mobile viewports.
-- Room persistence is planned but not implemented. Track that work in
-  `docs/exec-plans/active/2026-05-22-rooms-watch-sse-scaffold.md`.
+- Room persistence is now implemented through an optional SQLite repository and
+  SQLite-backed Lack session store selected by `UTTT_ROOM_DB`; future
+  persistence work should focus on migration and expiry policy, not the first
+  durable storage path.
