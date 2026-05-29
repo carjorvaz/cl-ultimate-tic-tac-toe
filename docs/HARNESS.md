@@ -90,18 +90,24 @@ Recommended room event shape when replacing the whole room fragment:
 
 ```text
 event: room-update
-data: <section id="room-game" sse-swap="room-update" hx-swap="outerHTML" ...>...</section>
+data: <section id="room-game" ...>...</section>
 ```
 
 For multiline HTML fragments, frame the SSE payload correctly by emitting one
 `data:` line per payload line or by rendering the fragment as a single line.
 
-Recommended markup shape keeps the SSE connection on a stable parent and swaps a
-child fragment with `outerHTML`, avoiding nested duplicate `#room-game` nodes:
+Recommended markup shape keeps the SSE connection and swap instructions on a
+stable parent and swaps a child fragment with `outerHTML`, avoiding nested
+duplicate `#room-game` nodes:
 
 ```html
-<div id="room-stream" hx-ext="sse" sse-connect="/rooms/ABCD23/events">
-  <section id="room-game" sse-swap="room-update" hx-swap="outerHTML">
+<div id="room-stream"
+     hx-ext="sse"
+     sse-connect="/rooms/ABCD23/events"
+     sse-swap="room-update"
+     hx-target="#room-game"
+     hx-swap="outerHTML">
+  <section id="room-game">
     ...server-rendered room fragment...
   </section>
 </div>

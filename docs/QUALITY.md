@@ -1,6 +1,6 @@
 # Quality
 
-Last reviewed: 2026-05-28
+Last reviewed: 2026-05-29
 
 ## Current Grade
 
@@ -10,14 +10,15 @@ accessibility structure, browser accessibility-tree coverage, color contrast,
 and desktop/mobile screenshot regression are tested. The remaining current-app
 accessibility gap is human screen-reader review.
 
-The room domain, initial web layer, and browser smoke are now tested for
-room-code creation, private X/O seat authority, watcher rejection, turn
-authorization, revision checks, game move rejection propagation, immutable room
-views, room creation redirects, role-aware room pages, seat claims, watcher
-read-only HTTP behavior, and an X/O/watcher browser flow through the manual
-refresh fallback. SSE observation and SQLite persistence are still planned in
-the active rooms/watch/SSE/scaffold plan and should become part of this grade as
-those phases land.
+The room domain, web layer, SSE observation path, and browser smoke are now
+tested for room-code creation, private X/O seat authority, watcher rejection,
+turn authorization, revision checks, game move rejection propagation, immutable
+room views, room creation redirects, role-aware room pages, seat claims,
+watcher read-only HTTP behavior, event-stream content/fragment shape, and an
+X/O/watcher browser flow whose inactive player and watcher views update through
+the local htmx SSE path. SQLite persistence is still planned in the active
+rooms/watch/SSE/scaffold plan and should become part of this grade when it
+lands.
 
 ## Verification Matrix
 
@@ -27,9 +28,9 @@ those phases land.
 - Browser rendering, responsive overflow, visible controls, CSRF form presence,
   DOM accessibility structure, browser accessibility-tree names and roles,
   color contrast, keyboard startup flow, computer-opponent play, room
-  X/O/watcher refresh-fallback play, game-over modal focus behavior,
-  desktop/mobile screenshot regression, and core HTMX form flow: covered by
-  `scripts/browser-smoke.mjs`.
+  X/O/watcher SSE observation with refresh fallback preserved, game-over modal
+  focus behavior, desktop/mobile screenshot regression, and core HTMX form flow:
+  covered by `scripts/browser-smoke.mjs`.
 - Generated CSS freshness: covered by `scripts/validate-assets.lisp`.
 - Source boundaries and dependency declarations: covered by
   `scripts/validate-architecture.lisp`.
@@ -45,9 +46,12 @@ those phases land.
   jars for X, O, and watcher sessions.
 - Room browser behavior: covered by `scripts/browser-smoke.mjs` with independent
   browser contexts for X player, O player, and watcher, including watcher
-  read-only rendering and refresh fallback after an X move.
-- SSE behavior: should be covered by HTTP tests for event stream content type
-  and fragment shape, plus browser-smoke coverage when reliable under Playwright.
+  read-only rendering, SSE propagation to inactive views, and refresh fallback
+  coverage for room URLs.
+- SSE behavior: covered by `t/web-tests.lisp` for event stream content type,
+  cache/security headers, `Last-Event-ID` duplicate suppression, and room-update
+  fragment shape, plus browser-smoke coverage of X/O/watcher update propagation
+  and idle reconnect focus preservation under Playwright.
 - SQLite persistence: should be covered by tests that reopen a repository from
   `UTTT_ROOM_DB` and prove stale duplicate writes are rejected.
 - Manual browser behavior: expected for larger UI changes beyond the smoke flow.
@@ -83,6 +87,5 @@ those phases land.
   roles, and computed color contrast.
 - Screenshot regression is limited to the checked-in start and in-progress
   baselines for desktop and mobile viewports.
-- Room persistence and SSE observation are planned but not implemented. Track
-  that work in
+- Room persistence is planned but not implemented. Track that work in
   `docs/exec-plans/active/2026-05-22-rooms-watch-sse-scaffold.md`.

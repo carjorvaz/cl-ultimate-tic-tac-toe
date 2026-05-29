@@ -157,7 +157,7 @@
       (decode-chunked-body raw-body)
       raw-body))
 
-(defun read-http-response (stream)
+(defun read-http-status-and-headers (stream)
   (let ((status-line (read-nonempty-line stream))
         (headers nil))
     (unless status-line
@@ -171,16 +171,44 @@
                        (string-left-trim '(#\Space #\Tab)
                                          (subseq line (1+ separator))))
                  headers))
-    (let* ((ordered-headers (nreverse headers))
-           (raw-body
-             (with-output-to-string (body)
-               (loop for char = (read-char stream nil nil)
-                     while char
-                     do (write-char char body)))))
+    (values (status-code status-line) (nreverse headers))))
+
+(defun read-http-response (stream)
+  (multiple-value-bind (status headers)
+      (read-http-status-and-headers stream)
+    (let ((raw-body
+            (with-output-to-string (body)
+              (loop for char = (read-char stream nil nil)
+                    while char
+                    do (write-char char body)))))
       (make-response
-       :status (status-code status-line)
-       :headers ordered-headers
-       :body (response-body-from-wire ordered-headers raw-body)))))
+       :status status
+       :headers headers
+       :body (response-body-from-wire headers raw-body)))))
+
+(defun read-until-delimiter (stream delimiter &key (max-chars 65536))
+  (let ((buffer (make-array 0
+                            :element-type 'character
+                            :fill-pointer 0
+                            :adjustable t))
+        (delimiter-length (length delimiter)))
+    (loop repeat max-chars
+          for char = (read-char stream nil nil)
+          while char
+          do (vector-push-extend char buffer)
+          until (and (>= (length buffer) delimiter-length)
+                     (string= delimiter
+                              buffer
+                              :start2 (- (length buffer) delimiter-length))))
+    (coerce buffer 'string)))
+
+(defun read-http-response-prefix (stream delimiter &key max-chars)
+  (multiple-value-bind (status headers)
+      (read-http-status-and-headers stream)
+    (make-response
+     :status status
+     :headers headers
+     :body (read-until-delimiter stream delimiter :max-chars max-chars))))
 
 (defun http-request (port method path &key body cookie headers)
   (let* ((payload (or body ""))
@@ -205,6 +233,32 @@
            (format stream "~C~C~A" #\Return #\Linefeed payload)
            (finish-output stream)
            (read-http-response stream))
+      (usocket:socket-close socket))))
+
+(defun http-request-until (port method path delimiter
+                           &key body cookie headers (max-chars 65536))
+  (let* ((payload (or body ""))
+         (socket (usocket:socket-connect "127.0.0.1" port
+                                         :element-type 'character
+                                         :timeout 2)))
+    (unwind-protect
+         (let ((stream (usocket:socket-stream socket)))
+           (format stream "~A ~A HTTP/1.1~C~C" method path #\Return #\Linefeed)
+           (format stream "Host: 127.0.0.1:~D~C~C" port #\Return #\Linefeed)
+           (format stream "User-Agent: ultimate-tic-tac-toe-tests~C~C" #\Return #\Linefeed)
+           (format stream "Connection: close~C~C" #\Return #\Linefeed)
+           (when cookie
+             (format stream "Cookie: ~A~C~C" cookie #\Return #\Linefeed))
+           (loop for (name . value) in headers
+                 do (format stream "~A: ~A~C~C" name value #\Return #\Linefeed))
+           (when body
+             (format stream "Content-Type: application/x-www-form-urlencoded~C~C"
+                     #\Return #\Linefeed)
+             (format stream "Content-Length: ~D~C~C"
+                     (length payload) #\Return #\Linefeed))
+           (format stream "~C~C~A" #\Return #\Linefeed payload)
+           (finish-output stream)
+           (read-http-response-prefix stream delimiter :max-chars max-chars))
       (usocket:socket-close socket))))
 
 (defvar *test-server-port* nil)
@@ -427,8 +481,62 @@
       (is (search "Watching" (response-body room)))
       (is (search "Claim X" (response-body room)))
       (is (search "Claim O" (response-body room)))
+      (is (search "src=\"/htmx.min.js\"" (response-body room)))
+      (is (search "src=\"/htmx-ext-sse.js\"" (response-body room)))
+      (is (search "id=room-stream" (response-body room)))
+      (is (search "hx-ext=sse" (response-body room)))
+      (is (search (format nil "sse-connect=\"/rooms/~A/events\"" code)
+                  (response-body room)))
+      (is (search "sse-swap=room-update" (response-body room)))
+      (is (search "hx-target=#room-game" (response-body room)))
+      (is (search "hx-swap=outerHTML" (response-body room)))
+      (is (not (search "hx-sse" (response-body room))))
       (is (response-csrf-token room))
       (is (not (search "hunchentoot-session" (response-body room)))))))
+
+(test room-events-streams-room-update-fragment
+  (with-test-server (port)
+    (let* ((home (http-request port "GET" "/"))
+           (cookie (response-cookie home))
+           (token (response-csrf-token home))
+           (create (http-request port "POST" "/rooms"
+                                 :cookie cookie
+                                 :body (csrf-body token "")))
+           (room-path (header-value create "Location"))
+           (code (room-code-from-location room-path))
+           (event-path (format nil "/rooms/~A/events" code))
+           (event (http-request-until port
+                                      "GET"
+                                      event-path
+                                      (format nil "~C~C" #\Linefeed #\Linefeed)
+                                      :cookie cookie))
+           (duplicate (http-request port
+                                    "GET"
+                                    event-path
+                                    :cookie cookie
+                                    :headers '(("Last-Event-ID" . "0")))))
+      (is (= 303 (response-status create)))
+      (is (not (null code)))
+      (is (= 200 (response-status event)))
+      (is (string= "text/event-stream; charset=utf-8"
+                   (header-value event "Content-Type")))
+      (is (string= "no-store"
+                   (header-value event "Cache-Control")))
+      (is (string= "no"
+                   (header-value event "X-Accel-Buffering")))
+      (is (string= "nosniff"
+                   (header-value event "X-Content-Type-Options")))
+      (is (search "event: room-update" (response-body event)))
+      (is (search "data: <section" (response-body event)))
+      (is (search "id=room-game" (response-body event)))
+      (is (not (search "sse-swap=room-update" (response-body event))))
+      (is (not (search "id=room-stream" (response-body event))))
+      (is (not (search "<!doctype html>" (response-body event))))
+      (is (= 200 (response-status duplicate)))
+      (is (string= "text/event-stream; charset=utf-8"
+                   (header-value duplicate "Content-Type")))
+      (is (not (search "event: room-update" (response-body duplicate))))
+      (is (not (search "data:" (response-body duplicate)))))))
 
 (test room-seats-authorize-players-and-watchers-cannot-move
   (with-test-server (port)
@@ -599,11 +707,12 @@
             (concurrent-http-requests
              (lambda () (http-request port "GET" "/style.css"))
              (lambda () (http-request port "GET" "/htmx.min.js"))
+             (lambda () (http-request port "GET" "/htmx-ext-sse.js"))
              (lambda () (http-request port "GET" "/app.js"))
              (lambda () (http-request port "GET" "/icon.svg"))
              (lambda () (http-request port "GET" "/x.svg"))
              (lambda () (http-request port "GET" "/o.svg")))))
-      (is (= 6 (count-if (lambda (response)
+      (is (= 7 (count-if (lambda (response)
                            (= 200 (response-status response)))
                          responses)))
       (is (find "text/css; charset=utf-8"
@@ -611,7 +720,7 @@
                 :key (lambda (response)
                        (header-value response "Content-Type"))
                 :test #'string=))
-      (is (= 2 (count-if (lambda (response)
+      (is (= 3 (count-if (lambda (response)
                            (string= "application/javascript; charset=utf-8"
                                     (header-value response "Content-Type")))
                          responses)))

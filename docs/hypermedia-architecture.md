@@ -1,6 +1,6 @@
 # Hypermedia Architecture
 
-Last reviewed: 2026-05-28
+Last reviewed: 2026-05-29
 
 Ultimate Tic Tac Toe is a server-rendered Common Lisp hypermedia app. The
 browser receives HTML representations and asks for state transitions through
@@ -49,8 +49,10 @@ Room multiplayer extends the same HTML contract:
   browser session.
 - `POST /rooms/:code/moves` applies a move only when the current browser session
   owns the seat whose mark has the turn and submitted the current room revision.
-- `GET /rooms/:code/events` is reserved for an optional future
-  `text/event-stream` of named room-update events for observation.
+- `GET /rooms/:code/events` returns `text/event-stream` `room-update` events
+  whose data is the room game fragment. The connection lives on the stable
+  `#room-stream` parent and swaps the `#room-game` child, so room observation can
+  update inactive players and watchers without inventing a command API.
 
 Non-htmx `POST` requests receive a `303 See Other` redirect back to the relevant
 page. htmx `POST` requests receive a fresh game fragment and, when needed, an
@@ -65,9 +67,8 @@ validated Lisp values and returns HTML representations. The intended dependency
 direction is `rules -> game -> rooms -> web`.
 
 Browser assets are local: `GET /htmx.min.js` serves the vendored HTMX asset,
-`GET /app.js` serves the app's progressive-enhancement script from `static/`,
-and a future `GET /htmx-ext-sse.js` should serve the vendored SSE extension if
-room SSE is enabled.
+`GET /htmx-ext-sse.js` serves the vendored SSE extension, and `GET /app.js`
+serves the app's progressive-enhancement script from `static/`.
 
 Responses receive conservative default security headers at the Clack boundary:
 `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`,
@@ -94,11 +95,16 @@ generated JavaScript.
 ## SSE Fragment Contract
 
 Room SSE is progressive enhancement for observation, not a new command channel.
-The event stream should emit named events such as `room-update` with the same
-server-rendered fragment that `GET /rooms/:code/game` returns. Keep the
-`EventSource` connection on a stable parent and use `hx-swap="outerHTML"` on the
-child room fragment when replacing the whole fragment, so htmx does not nest
-duplicate `#room-game` nodes through its default `innerHTML` swap.
+The event stream emits named `room-update` events with the same server-rendered
+`#room-game` fragment that `GET /rooms/:code/game` returns. Reconnect requests
+whose `Last-Event-ID` is already current return no event payload, preventing
+idle duplicate swaps from stealing keyboard focus. The stable `#room-stream`
+parent owns `hx-ext="sse"`, `sse-connect`, `sse-swap`, `hx-target="#room-game"`,
+and `hx-swap="outerHTML"`; event data contains only the child fragment. This
+avoids nested duplicate `#room-game` nodes through htmx's default `innerHTML`
+swap. The current implementation sends bounded snapshot events and relies on
+normal `EventSource` reconnects for subsequent room revisions, which keeps Woo
+and Hunchentoot behavior simple while preserving the manual refresh fallback.
 
 If SSE is unavailable, room pages must remain useful through normal form posts,
 fragment polling, or manual refresh.

@@ -261,6 +261,19 @@ async function smokeHttpBackend(serverName) {
   }
 }
 
+function isExpectedAbortedRoomEventRequest(request) {
+  const failureText = request.failure()?.errorText || '';
+  if (!failureText.includes('ERR_ABORTED')) {
+    return false;
+  }
+
+  try {
+    return /\/rooms\/[A-Z0-9]+\/events$/.test(new URL(request.url()).pathname);
+  } catch {
+    return false;
+  }
+}
+
 function captureBrowserFailures(page, failures) {
   page.on('pageerror', (error) => failures.push(`page error: ${error.message}`));
   page.on('console', (message) => {
@@ -270,7 +283,7 @@ function captureBrowserFailures(page, failures) {
     }
   });
   page.on('requestfailed', (request) => {
-    if (request.url().startsWith(baseUrl)) {
+    if (request.url().startsWith(baseUrl) && !isExpectedAbortedRoomEventRequest(request)) {
       failures.push(`request failed: ${request.url()} ${request.failure()?.errorText ?? ''}`);
     }
   });
@@ -984,9 +997,23 @@ async function playMove(page, board, cell, moveNumber) {
 }
 
 async function assertRoomShell(page, label) {
+  assert((await page.locator('#room-stream').count()) === 1, `${label} should render one #room-stream wrapper`);
   assert((await page.locator('#room-game').count()) === 1, `${label} should render one #room-game fragment`);
 
-  const roomBox = await page.locator('#room-game').boundingBox();
+  const stream = page.locator('#room-stream');
+  const streamConnect = await stream.getAttribute('sse-connect');
+  assert(await stream.getAttribute('hx-ext') === 'sse', `${label} did not enable the htmx SSE extension`);
+  assert(/\/rooms\/[A-Z0-9]+\/events$/.test(streamConnect || ''), `${label} did not point SSE at the room events route`);
+  assert(await stream.getAttribute('sse-swap') === 'room-update', `${label} did not subscribe #room-stream to room-update events`);
+  assert(await stream.getAttribute('hx-target') === '#room-game', `${label} did not target room-update events at #room-game`);
+  assert(await stream.getAttribute('hx-swap') === 'outerHTML', `${label} did not replace the room game fragment on room-update events`);
+
+  const roomGame = page.locator('#room-game');
+  await roomGame.waitFor({ state: 'visible', timeout: timeoutMs });
+  const roomBox = await roomGame.evaluate((element) => {
+    const rect = element.getBoundingClientRect();
+    return { width: rect.width, height: rect.height };
+  });
   assert(roomBox, `${label} did not render #room-game`);
   assert(roomBox.width > 200 && roomBox.height > 200, `${label} rendered a tiny room shell`);
   await assertNoHorizontalOverflow(page, label);
@@ -1004,6 +1031,28 @@ async function assertRoomMarkCount(page, label, expectedCount) {
   assert(marks === expectedCount, `${label} rendered ${marks} marks instead of ${expectedCount}`);
 }
 
+async function assertIdleRoomSsePreservesFocus(page, label) {
+  await page.waitForTimeout(1200);
+
+  const firstMoveButton = page.locator('#room-game .cell-button').first();
+  assert(await firstMoveButton.count() === 1, `${label} does not have a room move button to focus`);
+  await firstMoveButton.focus();
+
+  const focusedLabel = await page.evaluate(() => document.activeElement?.getAttribute('aria-label') || '');
+  assert(focusedLabel, `${label} did not focus a labeled room move button`);
+
+  await page.waitForTimeout(1200);
+
+  const active = await page.evaluate(() => ({
+    tag: document.activeElement?.tagName || '',
+    label: document.activeElement?.getAttribute('aria-label') || '',
+  }));
+  assert(
+    active.tag === 'BUTTON' && active.label === focusedLabel,
+    `${label} lost focus during idle SSE reconnects: expected ${focusedLabel}, got ${active.tag || 'nothing'} ${active.label || ''}`,
+  );
+}
+
 async function smokeRoomMultiContext(browser) {
   const contexts = [];
   const failures = [];
@@ -1018,7 +1067,7 @@ async function smokeRoomMultiContext(browser) {
     const page = await context.newPage();
     captureBrowserFailures(page, failures);
     page.on('requestfailed', (request) => {
-      if (request.url().startsWith(baseUrl)) {
+      if (request.url().startsWith(baseUrl) && !isExpectedAbortedRoomEventRequest(request)) {
         failures.push(`${label} request failed: ${request.url()} ${request.failure()?.errorText ?? ''}`);
       }
     });
@@ -1073,12 +1122,10 @@ async function smokeRoomMultiContext(browser) {
       ['StaticText', 'X seated'],
     ]);
 
-    await xPage.reload({ waitUntil: 'commit' });
-    await xPage.waitForSelector('#room-game', { timeout: timeoutMs });
-    await waitForHtmx(xPage);
-    await waitForText(xPage, 'You are X');
     await waitForText(xPage, 'O seated');
-    await assertRoomMoveControlCount(xPage, 'room X after O claim refresh', 81);
+    await waitForText(xPage, 'You are X');
+    await assertRoomMoveControlCount(xPage, 'room X after O claim via SSE', 81);
+    await assertIdleRoomSsePreservesFocus(xPage, 'room X idle SSE after O claim');
 
     const watcherPage = await newRoomPage('room watcher');
     await watcherPage.goto(roomUrl, { waitUntil: 'commit' });
@@ -1094,26 +1141,20 @@ async function smokeRoomMultiContext(browser) {
     await assertRoomMarkCount(xPage, 'room X after first move', 1);
     await assertRoomMoveControlCount(xPage, 'room X after first move', 0);
 
-    await oPage.reload({ waitUntil: 'commit' });
-    await oPage.waitForSelector('#room-game', { timeout: timeoutMs });
-    await waitForHtmx(oPage);
     await waitForText(oPage, 'O to move');
-    await assertRoomMarkCount(oPage, 'room O after X move refresh', 1);
-    await assertRoomMoveControlCount(oPage, 'room O after X move refresh', 8);
-    await assertAccessibilityAudit(oPage, 'room O after X move refresh', [
+    await assertRoomMarkCount(oPage, 'room O after X move via SSE', 1);
+    await assertRoomMoveControlCount(oPage, 'room O after X move via SSE', 8);
+    await assertAccessibilityAudit(oPage, 'room O after X move via SSE', [
       ['heading', `Room ${roomCode}`],
       ['StaticText', 'You are O'],
       ['StaticText', 'O to move'],
       ['button', 'Play O in the top left board, top square'],
     ]);
 
-    await watcherPage.reload({ waitUntil: 'commit' });
-    await watcherPage.waitForSelector('#room-game', { timeout: timeoutMs });
-    await waitForHtmx(watcherPage);
     await waitForText(watcherPage, 'O to move');
-    await assertRoomMarkCount(watcherPage, 'room watcher after X move refresh', 1);
-    await assertRoomMoveControlCount(watcherPage, 'room watcher after X move refresh', 0);
-    await assertAccessibilityAudit(watcherPage, 'room watcher after X move refresh', [
+    await assertRoomMarkCount(watcherPage, 'room watcher after X move via SSE', 1);
+    await assertRoomMoveControlCount(watcherPage, 'room watcher after X move via SSE', 0);
+    await assertAccessibilityAudit(watcherPage, 'room watcher after X move via SSE', [
       ['heading', `Room ${roomCode}`],
       ['StaticText', 'Watching'],
       ['StaticText', 'O to move'],

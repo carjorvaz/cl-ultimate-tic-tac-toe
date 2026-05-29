@@ -3,7 +3,8 @@
 (in-package #:ultimate-tic-tac-toe.web)
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
-  (pushnew "hx-" spinneret:*unvalidated-attribute-prefixes* :test #'string=))
+  (pushnew "hx-" spinneret:*unvalidated-attribute-prefixes* :test #'string=)
+  (pushnew "sse-" spinneret:*unvalidated-attribute-prefixes* :test #'string=))
 
 (defparameter *server* nil)
 
@@ -27,9 +28,10 @@
 (defparameter *version-path* "/version")
 
 (defparameter *html-content-type* "text/html; charset=utf-8")
-
 (defparameter *plain-text-content-type* "text/plain; charset=utf-8")
-
+(defparameter *event-stream-content-type* "text/event-stream; charset=utf-8")
+(defparameter *room-update-event-name* "room-update")
+(defparameter *room-event-retry-milliseconds* 500)
 (defparameter *recovered-game-notice*
   "The saved game state could not be used, so a fresh game has been started.")
 
@@ -61,6 +63,7 @@
 (defparameter *static-assets*
   '(("/style.css" "static/style.css" "text/css; charset=utf-8")
     ("/htmx.min.js" "static/htmx.min.js" "application/javascript; charset=utf-8")
+    ("/htmx-ext-sse.js" "static/htmx-ext-sse.js" "application/javascript; charset=utf-8")
     ("/app.js" "static/app.js" "application/javascript; charset=utf-8")
     ("/icon.svg" "static/icon.svg" "image/svg+xml")
     ("/x.svg" "static/x.svg" "image/svg+xml")
@@ -132,11 +135,20 @@
         (list body)))
 
 (defun response-with-default-headers (response)
-  (destructuring-bind (status headers body) response
-    (list status
-          (append headers
-                  (missing-default-headers headers *security-headers*))
-          body)))
+  (etypecase response
+    (list
+     (destructuring-bind (status headers &optional (body nil body-p)) response
+       (let ((headers (append headers
+                              (missing-default-headers headers *security-headers*))))
+         (if body-p
+             (list status headers body)
+             (list status headers)))))
+    (function
+     (lambda (respond)
+       (funcall response
+                (lambda (streaming-response)
+                  (funcall respond
+                           (response-with-default-headers streaming-response))))))))
 
 (defun wrap-default-headers (app)
   (lambda (env)
@@ -273,7 +285,7 @@
             :method "post"
             :action ,path
             :hx-post ,path
-            :hx-target "#room-game"
+            :hx-target "#room-stream"
             :hx-swap "outerHTML"
        (emit-csrf-input)
        ,@body)))
@@ -420,6 +432,16 @@
 (defun htmx-request-p ()
   (string-equal "true" (header-in "hx-request")))
 
+(defun parse-room-event-id (value)
+  (when (and value
+             (plusp (length value))
+             (every #'digit-char-p value))
+    (parse-integer value)))
+
+(defun request-last-event-id (request-env)
+  (let ((*request-env* request-env))
+    (parse-room-event-id (header-in "last-event-id"))))
+
 (defun form-parameter (params name)
   (cdr (assoc name params :test #'string=)))
 
@@ -439,6 +461,9 @@
 
 (defun room-game-path (code)
   (format nil "/rooms/~A/game" code))
+
+(defun room-events-path (code)
+  (format nil "/rooms/~A/events" code))
 
 (defun room-seat-path (code mark)
   (format nil "/rooms/~A/seats/~A" code (string-downcase (player-label mark))))
@@ -981,6 +1006,20 @@
   (spinneret:with-html-string
     (emit-room-game-fragment view :notice notice)))
 
+(defun emit-room-stream (view &key notice)
+  (spinneret:with-html
+    (:div :id "room-stream"
+          :hx-ext "sse"
+          :sse-connect (room-events-path (room-view-code view))
+          :sse-swap *room-update-event-name*
+          :hx-target "#room-game"
+          :hx-swap "outerHTML"
+      (emit-room-game-fragment view :notice notice))))
+
+(defun render-room-stream (view &key notice)
+  (spinneret:with-html-string
+    (emit-room-stream view :notice notice)))
+
 (defun emit-footer-separator ()
   (spinneret:with-html
     (:span :class "footer-separator"
@@ -1019,7 +1058,7 @@
   (let ((game (room-view-game view)))
     (concatenate
      'string
-     (render-room-game-fragment view :notice notice)
+     (render-room-stream view :notice notice)
      (spinneret:with-html-string
        (emit-page-footer :game game :out-of-band t)))))
 
@@ -1118,11 +1157,13 @@
            (emit-htmx-config)
            (:script :src "/htmx.min.js"
                     :defer t)
+           (:script :src "/htmx-ext-sse.js"
+                    :defer t)
            (:script :src "/app.js"
                     :defer t))
          (:body
            (:main :class "app"
-             (emit-room-game-fragment view :notice notice)
+             (emit-room-stream view :notice notice)
              (emit-page-footer :game game))))))))
 
 (defun room-rejection-notice (rejection)
@@ -1150,6 +1191,51 @@
       (progn
         (remember-room-notice code notice)
         (redirect-response (room-path code)))))
+
+(defun write-sse-data-lines (stream data)
+  (loop with start = 0
+        for end = (position #\Newline data :start start)
+        do (format stream "data: ~A~%" (subseq data start end))
+        if end
+          do (setf start (1+ end))
+        else
+          do (return)))
+
+(defun room-update-event (view request-env)
+  (let ((*request-env* request-env))
+    (with-output-to-string (stream)
+      (format stream "id: ~D~%" (room-view-revision view))
+      (format stream "retry: ~D~%" *room-event-retry-milliseconds*)
+      (format stream "event: ~A~%" *room-update-event-name*)
+      (write-sse-data-lines stream (render-room-game-fragment view))
+      (terpri stream))))
+
+(defun room-update-event-needed-p (view request-env)
+  (let ((last-event-id (request-last-event-id request-env)))
+    (or (null last-event-id)
+        (< last-event-id (room-view-revision view)))))
+
+(defun room-event-stream-response (view request-env)
+  (lambda (respond)
+    (let ((writer
+            (funcall respond
+                     (list 200
+                           (response-headers
+                            :content-type *event-stream-content-type*
+                            :headers (list :cache-control "no-store"
+                                           :x-accel-buffering "no"))))))
+      (funcall writer
+               (when (room-update-event-needed-p view request-env)
+                 (room-update-event view request-env))
+               :close t))))
+
+(defun room-events-handler (params)
+  (let ((code (request-room-code params)))
+    (multiple-value-bind (view foundp)
+        (and code (room-view-for-request code))
+      (if foundp
+          (room-event-stream-response view *request-env*)
+          (not-found-response)))))
 
 (defun room-page-handler (params)
   (let ((code (request-room-code params)))
@@ -1350,6 +1436,7 @@
            (list :get *version-path* #'version-handler)
            (list :get *current-game-path* #'current-game-handler)
            (list :post *rooms-path* #'rooms-handler)
+           (list :get "/rooms/:code/events" #'room-events-handler)
            (list :get "/rooms/:code/game" #'room-game-handler)
            (list :get "/rooms/:code" #'room-page-handler)
            (list :post "/rooms/:code/seats/:mark" #'room-seat-handler)

@@ -1,6 +1,6 @@
 # Reliability
 
-Last reviewed: 2026-05-28
+Last reviewed: 2026-05-29
 
 Reliability in this project means every agent can boot, test, and reason about
 the app locally without hidden service dependencies. Multiplayer rooms should add
@@ -33,8 +33,11 @@ shared state without taking away that local feedback loop.
 - Shared room state belongs behind the room repository API, not in web handlers.
 - Room updates should serialize by room code and revision so concurrent duplicate
   room moves produce one accepted move and one rejection.
-- Room reads for rendering or SSE must not hold write locks while streaming to a
-  slow or disconnected client.
+- Room reads for rendering or SSE must not hold write locks while sending HTML
+  to a slow or disconnected client. The current SSE endpoint returns bounded
+  `room-update` snapshots, suppresses same-revision `Last-Event-ID` reconnects,
+  and lets `EventSource` reconnect for subsequent revisions, preserving the
+  refresh fallback and avoiding backend-specific streaming locks.
 - Web handlers should return HTML without leaking backend-specific session URLs,
   private seat tokens, or persistence paths.
 
@@ -69,9 +72,10 @@ shared state without taking away that local feedback loop.
 - Use `nix build .#` to verify the packaged app output.
 - Use `scripts/browser-smoke.mjs` for browser-driven desktop/mobile rendering,
   HTMX swap, computer-opponent play, independent X-player/O-player/watcher room
-  refresh fallback, CSRF-form, accessibility structure, accessibility-tree names
-  and roles, color contrast, keyboard flow, modal focus, screenshot regression,
-  backend health probes, and overflow validation.
+  SSE observation with refresh fallback preserved, CSRF-form, accessibility
+  structure, accessibility-tree names and roles, color contrast, keyboard flow,
+  modal focus, screenshot regression, backend health probes, and overflow
+  validation.
 - Keep browser-visible room behavior covered before persistence or SSE work is
   treated as ready; SSE should add live observation coverage without removing the
   refresh fallback.
