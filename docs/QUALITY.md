@@ -7,8 +7,9 @@ Last reviewed: 2026-05-29
 A for the current compact local-session app: domain behavior, HTTP flow, session
 handling, concurrent duplicate moves, source boundaries, docs, browser behavior,
 accessibility structure, browser accessibility-tree coverage, color contrast,
-and desktop/mobile screenshot regression are tested. The remaining current-app
-accessibility gap is human screen-reader review.
+and desktop/mobile screenshot regression are tested. Manual screen-reader review
+is a public-release or accessibility-sensitive gate, not a blocker for ordinary
+private-app iteration.
 
 The room domain, web layer, SQLite persistence path, SSE observation path, and
 browser smoke are now tested for room-code creation, private X/O seat authority,
@@ -83,10 +84,10 @@ through the local htmx SSE path.
 
 ## Known Gaps
 
-- No manual screen-reader pass is tracked in CI; use
-  `docs/accessibility-review.md` to run and record one. The local browser smoke
-  covers DOM accessibility integrity, Chromium accessibility-tree names and
-  roles, and computed color contrast.
+- Manual screen-reader review is intentionally not a routine blocker for this
+  mostly private app. Run and record `docs/accessibility-review.md` before a
+  public release, accessibility-sensitive audience, or major UI overhaul where
+  human assistive-tech behavior is part of the acceptance bar.
 - Screenshot regression is limited to the checked-in start and in-progress
   baselines for desktop and mobile viewports.
 - Room persistence is now implemented through an optional SQLite repository and

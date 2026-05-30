@@ -7,9 +7,10 @@ focused patches.
 
 ## Known Debt
 
-- Run and record the manual screen-reader pass in
-  `docs/accessibility-review.md` to complement the automated DOM,
-  accessibility-tree, and color-contrast smoke coverage.
+- Manual screen-reader review is not routine debt for this mostly private app.
+  Keep `docs/accessibility-review.md` as a runbook, and run it before a public
+  release, accessibility-sensitive audience, or major UI overhaul where human
+  assistive-tech behavior is part of the acceptance bar.
 
 ## Gardening Rule
 
