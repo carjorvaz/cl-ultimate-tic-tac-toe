@@ -117,6 +117,7 @@ Use htmx SSE as progressive enhancement, not as the core command path.
 - 2026-05-28: Browser multi-context room smoke landed for independent X-player, O-player, and watcher contexts through the manual refresh fallback.
 - 2026-05-29: Phase 5 SSE observation landed with local `htmx-ext-sse`, `GET /rooms/:code/events` `text/event-stream` snapshots, stable `#room-stream` -> `#room-game` swaps, same-revision `Last-Event-ID` no-op responses to preserve focus during idle reconnects, HTTP event-stream coverage, and browser smoke assertions that X/O/watcher contexts receive room updates without manual reloads.
 - 2026-05-29: Phase 3 SQLite room persistence landed with `sbclPackages.sqlite`, a versioned room row format, transactional seat/move updates, repository reopen coverage, stale duplicate rejection after reopen, and `UTTT_ROOM_DB` web-boundary selection while preserving in-memory rooms when unset.
+- 2026-05-30: Phase 7 scaffold extraction started with a focused active plan at `docs/exec-plans/active/2026-05-30-scaffold-extraction.md`, a `scaffold/` docs skeleton, and docs-validator coverage so the extraction track remains visible.
 
 ## Decisions
 

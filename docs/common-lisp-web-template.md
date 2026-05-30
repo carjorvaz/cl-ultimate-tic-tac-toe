@@ -51,6 +51,7 @@ A new app should start with this layout:
 
 ```text
 .
+├── .envrc
 ├── flake.nix
 ├── app.asd
 ├── README.md
@@ -64,6 +65,7 @@ A new app should start with this layout:
 │   ├── PRODUCT.md
 │   ├── RELIABILITY.md
 │   ├── QUALITY.md
+│   ├── PLANS.md
 │   └── technical-debt.md
 ├── scripts/
 │   ├── run.lisp
@@ -71,7 +73,8 @@ A new app should start with this layout:
 │   ├── build-assets.lisp
 │   ├── validate-assets.lisp
 │   ├── validate-architecture.lisp
-│   └── validate-docs.lisp
+│   ├── validate-docs.lisp
+│   └── browser-smoke.mjs
 ├── src/
 │   ├── package.lisp
 │   ├── domain.lisp
