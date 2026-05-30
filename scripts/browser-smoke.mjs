@@ -1010,12 +1010,22 @@ async function assertRoomShell(page, label) {
 
   const roomGame = page.locator('#room-game');
   await roomGame.waitFor({ state: 'visible', timeout: timeoutMs });
-  const roomBox = await roomGame.evaluate((element) => {
-    const rect = element.getBoundingClientRect();
-    return { width: rect.width, height: rect.height };
-  });
-  assert(roomBox, `${label} did not render #room-game`);
-  assert(roomBox.width > 200 && roomBox.height > 200, `${label} rendered a tiny room shell`);
+  try {
+    await page.waitForFunction(() => {
+      const element = document.querySelector('#room-game');
+      if (!element) {
+        return false;
+      }
+      const rect = element.getBoundingClientRect();
+      return rect.width > 200 && rect.height > 200;
+    }, null, { timeout: timeoutMs });
+  } catch (error) {
+    const roomBox = await roomGame.evaluate((element) => {
+      const rect = element.getBoundingClientRect();
+      return { width: rect.width, height: rect.height };
+    });
+    throw new Error(`${label} rendered a tiny room shell (${roomBox.width}x${roomBox.height})`);
+  }
   await assertNoHorizontalOverflow(page, label);
 }
 
