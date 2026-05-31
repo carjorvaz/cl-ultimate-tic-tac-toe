@@ -88,6 +88,19 @@ Run the deterministic repository checks used by CI with:
 nix flake check
 ```
 
+Prove the reusable Common Lisp scaffold by copying `scaffold/template/` into a
+temporary app and running its local validation loop with:
+
+```sh
+direnv exec . node scripts/scaffold-smoke.mjs
+```
+
+or through the flake app:
+
+```sh
+nix run .#scaffold-smoke
+```
+
 Build the packaged app with:
 
 ```sh
@@ -109,8 +122,9 @@ The flake also exports a NixOS module for service deployments:
 }
 ```
 
-CI also runs the browser smoke check through `nix run .#browser-smoke` with
-checked-in screenshot comparison skipped for runner-portable rendering.
+CI also runs the scaffold smoke through `nix run .#scaffold-smoke` and the
+browser smoke check through `nix run .#browser-smoke` with checked-in screenshot
+comparison skipped for runner-portable rendering.
 
 ## Repository Knowledge
 

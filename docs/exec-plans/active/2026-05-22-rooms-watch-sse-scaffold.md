@@ -104,7 +104,7 @@ Use htmx SSE as progressive enhancement, not as the core command path.
 - Include `.envrc`, `flake.nix`, ASDF systems, docs, AGENTS/CLAUDE guidance, scripts, LASS/static CSS, and browser-smoke helpers.
 - Parameterize app name, ASDF system, package prefix, default port, source URL, license, optional Coalton, optional SQLite, and optional SSE.
 - Add a scaffold self-smoke that generates/copies a temp app and runs docs validation plus Lisp tests.
-- Keep scaffold defaults small: domain -> web, with optional rules/domain/web and optional room/persistence extensions.
+- Keep scaffold defaults small: a domain layer plus a web adapter, with optional rules/domain/web and optional room/persistence extensions.
 
 ## Progress Log
 

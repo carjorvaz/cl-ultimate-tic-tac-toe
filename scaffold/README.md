@@ -10,7 +10,7 @@ Do not split this into a separate repository until the in-repo template has been
 
 ## Rules
 
-- Keep the default template small: `domain -> web`.
+- Keep the default template small: a domain layer plus a web adapter.
 - Treat Coalton rules, SQLite persistence, and htmx SSE as optional extensions, not default template complexity.
 - Preserve the agent-first harness: `AGENTS.md` as a map, focused docs under `docs/`, and mechanical validation scripts.
 - Keep CSS source/generated behavior: edit `assets/style.lass`, serve `static/style.css`, and validate freshness.
@@ -19,12 +19,27 @@ Do not split this into a separate repository until the in-repo template has been
 
 ## Validation
 
-The scaffold is not complete until a self-smoke can copy or instantiate `scaffold/template/` into a temporary app and run, at minimum:
+The scaffold is not complete until a self-smoke can copy or instantiate
+`scaffold/template/` into a temporary app and run, at minimum:
 
 ```sh
 sbcl --script scripts/test.lisp
 sbcl --script scripts/validate-docs.lisp
 ```
+
+Run the repository self-smoke with:
+
+```sh
+direnv exec . node scripts/scaffold-smoke.mjs
+```
+
+or through the flake app:
+
+```sh
+nix run .#scaffold-smoke
+```
+
+Set `SCAFFOLD_SMOKE_KEEP_TMP=1` to keep the copied temporary app for debugging.
 
 The parent repository must still pass its normal validation while the scaffold is under construction.
 

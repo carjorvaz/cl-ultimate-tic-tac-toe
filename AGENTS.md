@@ -17,6 +17,8 @@ a map, not a manual; the durable source of truth lives in `docs/`.
 7. Run `direnv exec . sbcl --script scripts/validate-docs.lisp` after changing
    repository guidance, docs, scripts, or Lisp file headers.
 8. Run `direnv exec . node scripts/browser-smoke.mjs` after UI changes.
+9. Run `direnv exec . node scripts/scaffold-smoke.mjs` after changing
+   `scaffold/template/` or scaffold validation.
 
 ## Source Of Truth
 

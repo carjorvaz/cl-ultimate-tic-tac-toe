@@ -89,14 +89,17 @@ A new app should start with this layout:
     └── web-tests.lisp
 ```
 
-Larger apps may split `src/domain.lisp` into more files, but keep dependency
-direction explicit. The default direction is:
+Larger apps may split `src/domain.lisp` into more files, but keep layer order
+and dependency direction explicit. The default layer order is:
 
 `domain -> web`
 
 If there is a pure rules kernel, use:
 
 `rules -> domain -> web`
+
+Compile-time dependencies point from adapters toward lower layers: web may use
+domain, domain may use rules, and lower layers must not import web concerns.
 
 ## CSS Policy
 
@@ -142,9 +145,17 @@ The template is only useful if it carries the feedback loop with it:
 - `scripts/validate-architecture.lisp` enforces package direction and forbidden
   boundary references.
 - `scripts/validate-docs.lisp` keeps the human map current.
-- `scripts/browser-smoke.mjs` drives a browser through the core flow, checks
-  accessibility structure, audits accessible names and color contrast, verifies
-  no unexpected external requests happen, and compares screenshot baselines.
+- The source repository's `scripts/browser-smoke.mjs` drives a browser through
+  the core flow, checks accessibility structure, audits accessible names and
+  color contrast, verifies no unexpected external requests happen, and compares
+  screenshot baselines.
+- The default scaffold's `scripts/browser-smoke.mjs` is intentionally smaller:
+  it starts the copied app, probes `/health`, renders the home page, and rejects
+  unexpected external requests. Scaffold consumers can grow it with product-
+  specific accessibility, contrast, and screenshot checks.
+- In this source repository, `scripts/scaffold-smoke.mjs` copies
+  `scaffold/template/` into a temporary app and runs that app's docs, assets,
+  Lisp tests, and architecture checks.
 - `docs/HARNESS.md` records the agent-first operating model, Common Lisp taste
   rules, and optional SSE policy that scaffold consumers should inherit.
 - `nix flake check` runs the deterministic suite expected in CI.
@@ -167,6 +178,9 @@ When turning this project into a starter template:
 - keep docs validation from the start;
 - keep `docs/HARNESS.md` as the place for agent-first feedback loops, Common
   Lisp taste rules, and SSE/push policy;
+- keep the source repository scaffold smoke green with
+  `direnv exec . node scripts/scaffold-smoke.mjs` before publishing or splitting
+  the template;
 - keep a manual accessibility review runbook when the app has meaningful UI;
 - remove Coalton unless the new app has a pure rules kernel that benefits from
   it;
