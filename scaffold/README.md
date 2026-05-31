@@ -4,9 +4,13 @@ This directory is the in-repository proving ground for extracting the Common Lis
 
 ## Status
 
-Phase 7 has started as a repository-local scaffold. The first goal is a copyable `scaffold/template/` starter plus a self-smoke that proves a generated or copied app can run its own validation loop.
+The baseline Phase 7 scaffold is complete as a repository-local, copyable
+`scaffold/template/` starter. The repository self-smoke proves that a copied app
+can run its own validation loop.
 
-Do not split this into a separate repository until the in-repo template has been generated or copied into a temporary app and validated.
+Do not split this into a separate repository until the in-repo template has seen
+real reuse or a dedicated maintainer decision. Future generator or optional-module
+work should preserve this copyable baseline.
 
 ## Rules
 
@@ -19,8 +23,8 @@ Do not split this into a separate repository until the in-repo template has been
 
 ## Validation
 
-The scaffold is not complete until a self-smoke can copy or instantiate
-`scaffold/template/` into a temporary app and run, at minimum:
+The self-smoke copies `scaffold/template/` into a temporary app and runs that
+app's validation loop, including:
 
 ```sh
 sbcl --script scripts/test.lisp
@@ -41,8 +45,11 @@ nix run .#scaffold-smoke
 
 Set `SCAFFOLD_SMOKE_KEEP_TMP=1` to keep the copied temporary app for debugging.
 
-The parent repository must still pass its normal validation while the scaffold is under construction.
+The parent repository must still pass its normal validation while the scaffold
+evolves.
 
 ## Plan
 
-See `docs/exec-plans/active/2026-05-30-scaffold-extraction.md` for the focused implementation plan and `docs/common-lisp-web-template.md` for the template contract.
+See `docs/exec-plans/completed/2026-05-30-scaffold-extraction.md` for the
+baseline implementation history and `docs/common-lisp-web-template.md` for the
+template contract.

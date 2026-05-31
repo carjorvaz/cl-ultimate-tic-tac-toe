@@ -110,7 +110,12 @@ nix build .#
 
 - 2026-05-30: Started focused Phase 7 scaffold extraction plan after room, SSE, and SQLite persistence landed and CI was green on `master`.
 - 2026-05-31: Added the first copyable `scaffold/template/` app, repository `scripts/scaffold-smoke.mjs`, `nix run .#scaffold-smoke`, and CI scaffold-smoke wiring. Verified `direnv exec . node scripts/scaffold-smoke.mjs`, `nix run .#scaffold-smoke`, template-local `nix develop -c node scripts/browser-smoke.mjs`, `nix flake check --print-build-logs`, and `BROWSER_SMOKE_SKIP_SCREENSHOTS=1 nix run .#browser-smoke`.
+- 2026-05-31: Closed the baseline extraction plan after the copyable template
+  and self-smoke were validated; optional Coalton, SQLite, and SSE template
+  modules remain future feature gates rather than baseline requirements.
 
 ## Completion Criteria
 
-Move this plan to `docs/exec-plans/completed/` only after `scaffold/template/` can create a new app that passes its own docs validation and Lisp tests.
+Completed: `scaffold/template/` can be copied into a temporary app that passes
+its own docs validation, asset validation, architecture validation, and Lisp
+tests through `scripts/scaffold-smoke.mjs`.

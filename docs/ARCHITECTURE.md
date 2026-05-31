@@ -81,8 +81,9 @@ Rules:
 
 - `scripts/test.lisp` runs rules, game, room, and web behavior tests.
 - `scripts/validate-architecture.lisp` validates source layering, dependency
-  declarations, and ASDF component order from Lisp forms, plus the executable
-  client scripting boundary with scanner self-checks.
+  declarations, ASDF component order, and Coalton confinement to the pure
+  `src/rules.lisp` rules island from Lisp forms, plus the executable client
+  scripting boundary with scanner self-checks.
 - `scripts/build-assets.lisp` regenerates `static/style.css` from
   `assets/style.lass`.
 - `scripts/validate-assets.lisp` verifies generated assets are current.

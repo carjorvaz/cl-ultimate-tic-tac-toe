@@ -39,6 +39,12 @@
 (defparameter *nix-dependency-name-overrides*
   '(("lack/middleware/session" . "lack-middleware-session")))
 
+(defparameter *coalton-boundary-packages*
+  '("COALTON"
+    "COALTON-PRELUDE"
+    "COALTON-LIBRARY/SYMBOL"
+    "NAMED-READTABLES"))
+
 (defparameter *reader-systems*
   (copy-list (second (assoc *application-system-name*
                             *system-dependencies*
@@ -132,6 +138,16 @@
   (etypecase designator
     (string (string-upcase designator))
     (symbol (string-upcase (symbol-name designator)))))
+
+(defun collect-designator-names (object)
+  (cond
+    ((or (stringp object)
+         (symbolp object))
+     (list (designator-name object)))
+    ((consp object)
+     (append (collect-designator-names (car object))
+             (collect-designator-names (cdr object))))
+    (t nil)))
 
 (defun keyword= (object name)
   (and (keywordp object)
@@ -246,6 +262,17 @@
                     (member (string-upcase source) uses :test #'string=))
             (fail "~A must not depend on package ~A." package-name source)))))))
 
+(defun validate-package-references-absent (package-name forbidden-references reason)
+  (let ((form (package-form package-name)))
+    (when form
+      (let ((references (collect-designator-names (cddr form))))
+        (dolist (reference forbidden-references)
+          (when (member (string-upcase reference) references :test #'string=)
+            (fail "~A must not reference package ~A (~A)."
+                  package-name
+                  reference
+                  reason)))))))
+
 (defun validate-package-boundaries ()
   (dolist (package '("ULTIMATE-TIC-TAC-TOE.RULES"
                     "ULTIMATE-TIC-TAC-TOE.GAME"
@@ -290,6 +317,22 @@
    :symbols '("HTMX" "CONTENT-TYPE" "SET-COOKIE")
    :strings '("hx-" "style.css" "text/html")
    :reason "rules must stay pure rule evaluation"))
+
+(defun validate-coalton-boundary ()
+  (dolist (package '("ULTIMATE-TIC-TAC-TOE.GAME"
+                    "ULTIMATE-TIC-TAC-TOE.ROOMS"
+                    "ULTIMATE-TIC-TAC-TOE.WEB"))
+    (validate-package-references-absent
+     package
+     *coalton-boundary-packages*
+     "Coalton belongs only in the pure rules package"))
+  (dolist (source '("src/game.lisp" "src/rooms.lisp" "src/web.lisp"))
+    (validate-form-signals-absent
+     source
+     :packages *coalton-boundary-packages*
+     :symbols '("COALTON-TOPLEVEL" "IN-READTABLE")
+     :strings '("coalton:" "named-readtables:")
+     :reason "Coalton must stay confined to src/rules.lisp")))
 
 (defun validate-game-boundary ()
   (validate-form-signals-absent
@@ -539,6 +582,7 @@ const ok = true;")
   (load-reader-systems)
   (validate-package-boundaries)
   (validate-rules-boundary)
+  (validate-coalton-boundary)
   (validate-game-boundary)
   (validate-rooms-boundary)
   (validate-web-boundary)
