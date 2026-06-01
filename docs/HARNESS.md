@@ -22,7 +22,7 @@ fresh context window.
   `direnv exec . sbcl --script scripts/run.lisp` for the app, and the validation
   scripts listed in `AGENTS.md` for feedback.
 - Keep the repo-local command menu current: `just --list` should expose the
-  common validation, browser-smoke, scaffold-smoke, and JJ review commands.
+  common validation, browser-smoke, and JJ review commands.
 - Use Jujutsu as the local history-editing layer on top of Git. Prefer
   `jj status`, `jj diff --tool difft`, `jj split`, `jj squash -i`, `jj absorb`,
   `jj op log`, and `jj undo` while iterating; keep Git/GitHub for push, release

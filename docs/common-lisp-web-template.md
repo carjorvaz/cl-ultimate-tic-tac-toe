@@ -1,10 +1,11 @@
 # Common Lisp Web Template
 
-Last reviewed: 2026-05-23
+Last reviewed: 2026-06-01
 
-Use this document as the extraction target for future small Common Lisp web
-apps. It records the stack and repository shape this project has earned through
-actual use; it is a template contract before it becomes a generator.
+This document records the historical extraction target for future small Common
+Lisp web apps. The canonical reusable template now lives at
+<https://github.com/carjorvaz/cl-web-template>; keep this file as context for
+how the template was earned from this game repository.
 
 ## Purpose
 
@@ -145,17 +146,17 @@ The template is only useful if it carries the feedback loop with it:
 - `scripts/validate-architecture.lisp` enforces package direction and forbidden
   boundary references.
 - `scripts/validate-docs.lisp` keeps the human map current.
-- The source repository's `scripts/browser-smoke.mjs` drives a browser through
-  the core flow, checks accessibility structure, audits accessible names and
-  color contrast, verifies no unexpected external requests happen, and compares
-  screenshot baselines.
-- The default scaffold's `scripts/browser-smoke.mjs` is intentionally smaller:
-  it starts the copied app, probes `/health`, renders the home page, and rejects
-  unexpected external requests. Scaffold consumers can grow it with product-
-  specific accessibility, contrast, and screenshot checks.
-- In this source repository, `scripts/scaffold-smoke.mjs` copies
-  `scaffold/template/` into a temporary app and runs that app's docs, assets,
-  Lisp tests, and architecture checks.
+- The game repository's `scripts/browser-smoke.mjs` drives a browser through
+  the Ultimate Tic Tac Toe core flow, checks accessibility structure, audits
+  accessible names and color contrast, verifies no unexpected external requests
+  happen, and compares screenshot baselines.
+- The standalone template's `scripts/browser-smoke.mjs` is intentionally
+  smaller: it starts the copied app, probes `/health`, renders the home page,
+  and rejects unexpected external requests. Template consumers can grow it with
+  product-specific accessibility, contrast, and screenshot checks.
+- The standalone template's `scripts/template-smoke.mjs` copies the repository
+  into a temporary app and runs that app's docs, assets, Lisp tests,
+  architecture checks, and browser smoke.
 - `docs/HARNESS.md` records the agent-first operating model, Common Lisp taste
   rules, and optional SSE policy that scaffold consumers should inherit.
 - `nix flake check` runs the deterministic suite expected in CI.
@@ -178,9 +179,8 @@ When turning this project into a starter template:
 - keep docs validation from the start;
 - keep `docs/HARNESS.md` as the place for agent-first feedback loops, Common
   Lisp taste rules, and SSE/push policy;
-- keep the source repository scaffold smoke green with
-  `direnv exec . node scripts/scaffold-smoke.mjs` before publishing or splitting
-  the template;
+- keep the standalone template smoke green with `nix run .#template-smoke`
+  before publishing optional modules or generator changes;
 - keep a manual accessibility review runbook when the app has meaningful UI;
 - remove Coalton unless the new app has a pure rules kernel that benefits from
   it;

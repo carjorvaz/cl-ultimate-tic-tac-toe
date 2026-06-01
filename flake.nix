@@ -134,12 +134,6 @@
             export PLAYWRIGHT_BROWSERS_PATH="${pkgs.playwright.browsers}"
             exec ${pkgs.nodejs}/bin/node scripts/browser-smoke.mjs
           '';
-          scaffoldSmokeRunner = pkgs.writeShellScriptBin "ultimate-tic-tac-toe-scaffold-smoke" ''
-            set -euo pipefail
-            cd ${self}
-            export PATH="${pkgs.lib.makeBinPath [ pkgs.nix pkgs.nodejs ]}:$PATH"
-            exec ${pkgs.nodejs}/bin/node scripts/scaffold-smoke.mjs
-          '';
         in
         {
           default = {
@@ -149,10 +143,6 @@
           browser-smoke = {
             type = "app";
             program = "${browserSmokeRunner}/bin/ultimate-tic-tac-toe-browser-smoke";
-          };
-          scaffold-smoke = {
-            type = "app";
-            program = "${scaffoldSmokeRunner}/bin/ultimate-tic-tac-toe-scaffold-smoke";
           };
         });
 

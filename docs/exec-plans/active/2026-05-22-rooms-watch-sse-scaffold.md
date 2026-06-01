@@ -100,7 +100,9 @@ Use htmx SSE as progressive enhancement, not as the core command path.
 
 ## Phase 7: Scaffold Extraction
 
-- Create a `scaffold/template/` first; split to a separate repo later only after the template proves useful.
+- Completed: `scaffold/template/` was created first, validated, and then split
+  to <https://github.com/carjorvaz/cl-web-template> after the maintainer's
+  deliberate split decision.
 - Include `.envrc`, `flake.nix`, ASDF systems, docs, AGENTS/CLAUDE guidance, scripts, LASS/static CSS, and browser-smoke helpers.
 - Parameterize app name, ASDF system, package prefix, default port, source URL, license, optional Coalton, optional SQLite, and optional SSE.
 - Add a scaffold self-smoke that generates/copies a temp app and runs docs validation plus Lisp tests.
@@ -122,6 +124,9 @@ Use htmx SSE as progressive enhancement, not as the core command path.
   repository `scripts/scaffold-smoke.mjs`, `nix run .#scaffold-smoke`, CI
   scaffold-smoke wiring, and the focused plan moved to
   `docs/exec-plans/completed/2026-05-30-scaffold-extraction.md`.
+- 2026-06-01: Phase 7 was split into the standalone public template repository
+  <https://github.com/carjorvaz/cl-web-template>; this game repository now keeps
+  only extraction history and product-specific code.
 
 ## Decisions
 
@@ -131,7 +136,8 @@ Use htmx SSE as progressive enhancement, not as the core command path.
 - htmx SSE is progressive enhancement for observation and inactive views, not a move command channel.
 - SSE swaps should use a stable connection parent and `outerHTML` child replacement to avoid nested duplicate room fragments.
 - Persistence should align with existing `UTTT_ROOM_DB` deployment configuration and be proven by a SQLite spike before broad wiring.
-- Scaffold extraction waits until the room/persistence boundary is proven.
+- Scaffold extraction waited until the room/persistence boundary was proven;
+  future reusable template changes belong in `carjorvaz/cl-web-template`.
 - `docs/exec-plans/active/` is the durable home for this roadmap; local
   `.hermes/plans/` scratch copies should be migrated here or pruned.
 
@@ -153,7 +159,9 @@ Use htmx SSE as progressive enhancement, not as the core command path.
 
 - **Pre-flight:** current baseline must be green before implementation phases.
 - **Revision:** every phase with code gets spec review and code-quality review before proceeding.
-- **Escalation:** ask the maintainer before changing player authority semantics, reset policy, expiry policy, public URL shape, or scaffold repo split.
+- **Escalation:** ask the maintainer before changing player authority semantics,
+  reset policy, expiry policy, public URL shape, or template repository
+  ownership/publication policy.
 - **Abort:** stop if validation cannot run, if SQLite package behavior is unclear after the spike, or if the working tree has unexpected unrelated edits.
 
 ## Validation Commands

@@ -17,16 +17,15 @@ a map, not a manual; the durable source of truth lives in `docs/`.
 7. Run `direnv exec . sbcl --script scripts/validate-docs.lisp` after changing
    repository guidance, docs, scripts, or Lisp file headers.
 8. Run `direnv exec . node scripts/browser-smoke.mjs` after UI changes.
-9. Run `direnv exec . node scripts/scaffold-smoke.mjs` after changing
-   `scaffold/template/` or scaffold validation.
 
 ## Source Of Truth
 
 - `docs/ARCHITECTURE.md` describes module boundaries and dependency direction.
 - `docs/accessibility-review.md` describes the manual screen-reader review
   runbook.
-- `docs/common-lisp-web-template.md` records the reusable Common Lisp web app
-  template contract.
+- `docs/common-lisp-web-template.md` records the historical reusable Common
+  Lisp web app template contract, now split into
+  <https://github.com/carjorvaz/cl-web-template>.
 - `docs/HARNESS.md` records agent-first harness, Common Lisp taste, and SSE
   policy.
 - `docs/hypermedia-architecture.md` describes the HTTP and HTML contract.

@@ -2,6 +2,11 @@
 
 > **For Hermes:** Use subagent-driven-development skill to implement this plan task-by-task with spec and quality review gates once the skeleton and self-smoke shape are stable.
 
+> Historical note: this plan closed the first repository-local slice. On
+> 2026-06-01, the maintained template was deliberately split to
+> <https://github.com/carjorvaz/cl-web-template>; this game repository now keeps
+> only extraction history and points reusable template work there.
+
 **Goal:** Extract this repository's proven Common Lisp web-app harness into a small `scaffold/template/` starter that can generate or copy a new app and validate itself.
 
 **Architecture:** Keep extraction repository-local first. The template should default to a small Common Lisp hypermedia app with a domain layer and a web adapter, and expose optional extension points for Coalton rules, SQLite persistence, and htmx SSE rather than baking Ultimate Tic Tac Toe assumptions into the starter.
@@ -19,6 +24,9 @@
 - No separate repository is created until the in-repo template proves useful.
 
 ## Non-Goals For The First Slice
+
+These non-goals applied only to the first repository-local slice before the
+maintainer decision to split the proven template.
 
 - Do not publish a separate scaffold repo.
 - Do not build a clever generator before a copyable template exists.
@@ -113,9 +121,14 @@ nix build .#
 - 2026-05-31: Closed the baseline extraction plan after the copyable template
   and self-smoke were validated; optional Coalton, SQLite, and SSE template
   modules remain future feature gates rather than baseline requirements.
+- 2026-06-01: Split the proven template into the standalone public repository
+  `carjorvaz/cl-web-template`; the game repository now points there and no
+  longer carries the duplicate template tree or scaffold-smoke CI job.
 
 ## Completion Criteria
 
-Completed: `scaffold/template/` can be copied into a temporary app that passes
-its own docs validation, asset validation, architecture validation, and Lisp
-tests through `scripts/scaffold-smoke.mjs`.
+Completed first slice: `scaffold/template/` could be copied into a temporary app
+that passed its own docs validation, asset validation, architecture validation,
+and Lisp tests through `scripts/scaffold-smoke.mjs`.
+
+Superseded maintenance location: <https://github.com/carjorvaz/cl-web-template>.

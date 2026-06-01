@@ -52,8 +52,7 @@
     ("docs/PLANS.md" ("Last reviewed:" "## When To Create A Plan" "## Plan Location"))
     ("docs/technical-debt.md" ("Last reviewed:" "## Known Debt" "## Gardening Rule"))
     ("docs/exec-plans/README.md" ("Last reviewed:" "## Layout"))
-    ("scaffold/README.md" ("## Status" "## Rules" "## Validation" "## Plan"))
-    ("scaffold/template/README.md" ("## Template Parameters" "## Required Files" "## Generation Contract" "## Non-Goals"))))
+    ("scaffold/README.md" ("## Status" "## Rules" "## Validation" "## Plan"))))
 
 (defparameter *agent-map-links*
   '("docs/README.md"

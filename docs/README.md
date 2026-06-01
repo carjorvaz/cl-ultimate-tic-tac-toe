@@ -10,8 +10,9 @@ here so the agent can progressively disclose only the context it needs.
 
 - `ARCHITECTURE.md`: source layout, dependency direction, and boundary rules.
 - `accessibility-review.md`: manual screen-reader review runbook.
-- `common-lisp-web-template.md`: reusable Common Lisp web app template
-  contract.
+- `common-lisp-web-template.md`: historical reusable Common Lisp web app
+  template contract, now promoted to
+  <https://github.com/carjorvaz/cl-web-template>.
 - `HARNESS.md`: agent-first harness, Common Lisp taste, and SSE policy.
 - `hypermedia-architecture.md`: Clack/Lack/Ningle/Spinneret routes and HTML
   contract.

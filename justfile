@@ -19,9 +19,6 @@ validate-docs:
 browser-smoke:
     direnv exec . node scripts/browser-smoke.mjs
 
-scaffold-smoke:
-    direnv exec . node scripts/scaffold-smoke.mjs
-
 flake-check:
     nix flake check --print-build-logs
 
