@@ -40,13 +40,14 @@ a map, not a manual; the durable source of truth lives in `docs/`.
 ## Architecture Rules
 
 - Keep rule evaluation in `src/rules.lisp`, game state transitions in
-  `src/game.lisp`, room authorization/revisions in `src/rooms.lisp`, and
-  HTTP/session/rendering concerns in `src/web.lisp`.
+  `src/game.lisp`, deterministic opponent move selection in `src/game-ai.lisp`,
+  room authorization/revisions/persistence in the `src/rooms*.lisp` files, and
+  HTTP/session/rendering concerns in the `src/web*.lisp` files.
 - Parse strings and request data at the web boundary before calling game logic.
-- Do not make `src/game.lisp` depend on Clack, Lack, Ningle, Spinneret, HTMX,
-  CSS, or rooms.
-- Do not make `src/rooms.lisp` depend on Clack, Lack, Ningle, Spinneret, HTMX,
-  CSS, web sessions, or direct Coalton rule evaluation.
+- Do not make the `src/game*.lisp` files depend on Clack, Lack, Ningle,
+  Spinneret, HTMX, CSS, or rooms.
+- Do not make the `src/rooms*.lisp` files depend on Clack, Lack, Ningle,
+  Spinneret, HTMX, CSS, web sessions, or direct Coalton rule evaluation.
 - Preserve the existing Common Lisp style unless a local doc says otherwise.
 - Add or update tests when behavior changes.
 - Treat `assets/style.lass` as the source for `static/style.css`.

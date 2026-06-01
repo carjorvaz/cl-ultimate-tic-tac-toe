@@ -45,6 +45,20 @@
     "COALTON-LIBRARY/SYMBOL"
     "NAMED-READTABLES"))
 
+(defparameter *web-source-files*
+  '("src/web.lisp"
+    "src/web-render.lisp"
+    "src/web-handlers.lisp"))
+
+(defparameter *rooms-source-files*
+  '("src/rooms.lisp"
+    "src/rooms-memory.lisp"
+    "src/rooms-sqlite.lisp"))
+
+(defparameter *game-source-files*
+  '("src/game.lisp"
+    "src/game-ai.lisp"))
+
 (defparameter *reader-systems*
   (copy-list (second (assoc *application-system-name*
                             *system-dependencies*
@@ -221,6 +235,31 @@
               package
               reason)))))
 
+(defun source-files-form-signals (relative-paths)
+  (let ((all-packages nil)
+        (all-symbols nil)
+        (all-strings nil))
+    (dolist (relative-path relative-paths)
+      (multiple-value-bind (packages symbols strings)
+          (form-signals relative-path)
+        (setf all-packages (append packages all-packages)
+              all-symbols (append symbols all-symbols)
+              all-strings (append strings all-strings))))
+    (values (remove-duplicates all-packages :test #'string=)
+            (remove-duplicates all-symbols :test #'string=)
+            (remove-duplicates all-strings :test #'string=))))
+
+(defun validate-source-files-packages-present (relative-paths packages reason)
+  (multiple-value-bind (present-packages present-symbols present-strings)
+      (source-files-form-signals relative-paths)
+    (declare (ignore present-symbols present-strings))
+    (dolist (package packages)
+      (unless (member (string-upcase package) present-packages :test #'string=)
+        (fail "~{~A~^, ~} must reference package ~A (~A)."
+              relative-paths
+              package
+              reason)))))
+
 (defun defpackage-form-p (form)
   (and (consp form)
        (symbol-name= (first form) "DEFPACKAGE")))
@@ -326,7 +365,9 @@
      package
      *coalton-boundary-packages*
      "Coalton belongs only in the pure rules package"))
-  (dolist (source '("src/game.lisp" "src/rooms.lisp" "src/web.lisp"))
+  (dolist (source (append *game-source-files*
+                         *rooms-source-files*
+                         *web-source-files*))
     (validate-form-signals-absent
      source
      :packages *coalton-boundary-packages*
@@ -335,52 +376,55 @@
      :reason "Coalton must stay confined to src/rules.lisp")))
 
 (defun validate-game-boundary ()
-  (validate-form-signals-absent
-   "src/game.lisp"
-   :packages '("ULTIMATE-TIC-TAC-TOE.ROOMS"
-               "ULTIMATE-TIC-TAC-TOE.WEB"
-               "HUNCHENTOOT"
-               "WOO"
-               "CLACK"
-               "LACK"
-               "LACK/BUILDER"
-               "NINGLE"
-               "NINGLE/APP"
-               "SPINNERET"
-               "LASS"
-               "USOCKET")
-   :symbols '("HTMX" "CONTENT-TYPE" "SET-COOKIE")
-   :strings '("hx-" "style.css" "text/html" "set-cookie" "content-type")
-   :reason "game state must not know about HTTP or HTML"))
+  (dolist (source *game-source-files*)
+    (validate-form-signals-absent
+     source
+     :packages '("ULTIMATE-TIC-TAC-TOE.ROOMS"
+                 "ULTIMATE-TIC-TAC-TOE.WEB"
+                 "HUNCHENTOOT"
+                 "WOO"
+                 "CLACK"
+                 "LACK"
+                 "LACK/BUILDER"
+                 "NINGLE"
+                 "NINGLE/APP"
+                 "SPINNERET"
+                 "LASS"
+                 "USOCKET")
+     :symbols '("HTMX" "CONTENT-TYPE" "SET-COOKIE")
+     :strings '("hx-" "style.css" "text/html" "set-cookie" "content-type")
+     :reason "game state must not know about HTTP or HTML")))
 
 (defun validate-rooms-boundary ()
-  (validate-form-signals-absent
-   "src/rooms.lisp"
-   :packages '("ULTIMATE-TIC-TAC-TOE.RULES"
-               "ULTIMATE-TIC-TAC-TOE.WEB"
-               "HUNCHENTOOT"
-               "WOO"
-               "CLACK"
-               "LACK"
-               "LACK/BUILDER"
-               "NINGLE"
-               "NINGLE/APP"
-               "SPINNERET"
-               "LASS"
-               "USOCKET")
-   :symbols '("HTMX" "CONTENT-TYPE" "SET-COOKIE")
-   :strings '("hx-" "style.css" "text/html" "set-cookie" "content-type")
-   :reason "rooms coordinate game state and authorization without HTTP or HTML"))
+  (dolist (source *rooms-source-files*)
+    (validate-form-signals-absent
+     source
+     :packages '("ULTIMATE-TIC-TAC-TOE.RULES"
+                 "ULTIMATE-TIC-TAC-TOE.WEB"
+                 "HUNCHENTOOT"
+                 "WOO"
+                 "CLACK"
+                 "LACK"
+                 "LACK/BUILDER"
+                 "NINGLE"
+                 "NINGLE/APP"
+                 "SPINNERET"
+                 "LASS"
+                 "USOCKET")
+     :symbols '("HTMX" "CONTENT-TYPE" "SET-COOKIE")
+     :strings '("hx-" "style.css" "text/html" "set-cookie" "content-type")
+     :reason "rooms coordinate game state and authorization without HTTP or HTML")))
 
 (defun validate-web-boundary ()
-  (validate-form-signals-absent
-   "src/web.lisp"
-   :packages '("ULTIMATE-TIC-TAC-TOE.RULES"
-               "CLACK.HANDLER.HUNCHENTOOT"
-               "LASS")
-   :reason "web should call game APIs, keep private adapter lookup quarantined, and leave stylesheet generation to asset scripts")
-  (validate-form-packages-present
-   "src/web.lisp"
+  (dolist (source *web-source-files*)
+    (validate-form-signals-absent
+     source
+     :packages '("ULTIMATE-TIC-TAC-TOE.RULES"
+                 "CLACK.HANDLER.HUNCHENTOOT"
+                 "LASS")
+     :reason "web should call game APIs, keep private adapter lookup quarantined, and leave stylesheet generation to asset scripts"))
+  (validate-source-files-packages-present
+   *web-source-files*
    '("CLACK" "LACK/BUILDER" "NINGLE/APP" "SPINNERET")
    "web must remain the HTTP and HTML boundary"))
 
@@ -570,7 +614,9 @@ const ok = true;")
 
 (defun validate-asdf-component-order ()
   (let ((form (system-form "ultimate-tic-tac-toe"))
-        (expected '("package" "rules" "game" "rooms" "web")))
+        (expected '("package" "rules" "game" "game-ai" "rooms"
+                    "rooms-memory" "rooms-sqlite" "web" "web-render"
+                    "web-handlers")))
     (when form
       (let ((actual (collect-component-files (system-option form "COMPONENTS"))))
         (unless (equal expected actual)

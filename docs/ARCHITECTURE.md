@@ -1,6 +1,6 @@
 # Architecture
 
-Last reviewed: 2026-05-23
+Last reviewed: 2026-06-01
 
 Ultimate Tic Tac Toe is a server-rendered Common Lisp hypermedia app. The
 dependency shape is intentionally simple so future agents can inspect the whole
@@ -12,15 +12,22 @@ system quickly and can lift the harness into new projects later.
 - `src/rules.lisp` contains the typed Coalton rules slice: local-board outcome,
   global outcome, and winning-line indexes.
 - `src/game.lisp` owns mutable game state, legality checks, move application,
-  deterministic opponent move selection, and domain-level outcome updates.
-- `src/rooms.lisp` owns shareable room state, private seat-token authority,
-  watcher classification, revision checks, optional SQLite persistence, and
-  serialization around room mutations. It is deliberately not an HTTP or HTML
-  layer.
+  validation, and domain-level outcome updates.
+- `src/game-ai.lisp` owns deterministic opponent move selection: first legal,
+  tactical, and search-backed moves over the mutable game protocol.
+- `src/rooms.lisp` owns the shareable room protocol: room state, room views,
+  private seat-token authority, watcher classification, revision checks, and
+  repository-generic operations.
+- `src/rooms-memory.lisp` implements the in-memory room repository.
+- `src/rooms-sqlite.lisp` implements the SQLite room repository, including row
+  serialization around room mutations.
 - `src/web.lisp` owns Clack responses, Lack session access, optional
-  SQLite-backed session storage for room seat authority, Ningle routes,
-  Spinneret rendering, HTMX fragments, static asset serving, and request
-  parsing.
+  SQLite-backed session storage for room seat authority, shared request parsing,
+  and HTTP/session helpers.
+- `src/web-render.lisp` owns Spinneret rendering, HTMX fragments, full-page
+  HTML, and the room SSE fragment shape.
+- `src/web-handlers.lisp` owns Ningle routes, static asset serving, room SSE
+  responses, request handlers, and server lifecycle.
 - `assets/` contains source assets, including `assets/style.lass`.
 - `static/` contains generated CSS and SVG assets served directly by the web
   layer.
@@ -42,18 +49,20 @@ Rules:
 - `src/rules.lisp` must stay pure rule evaluation. It should not know about
   Clack, Lack, Ningle, Spinneret, sessions, CSS, mutable `game` structs, or
   room state.
-- `src/game.lisp` may import from `ultimate-tic-tac-toe.rules`; it should not
-  render HTML, read request parameters, manage HTTP sessions, or know about
-  shareable rooms.
-- `src/rooms.lisp` may import from `ultimate-tic-tac-toe.game`; it should own
-  room-level authorization and concurrency, but it should not render HTML, parse
-  requests, know about cookies, or depend directly on Coalton rules.
-- `src/web.lisp` is the adapter boundary. Convert request strings with helpers
-  such as `parse-index` and `parse-player-mark` before calling lower layers.
+- The `src/game*.lisp` files may import from `ultimate-tic-tac-toe.rules`; they
+  should not render HTML, read request parameters, manage HTTP sessions, or know
+  about shareable rooms.
+- The `src/rooms*.lisp` files may import from `ultimate-tic-tac-toe.game`; they
+  should own room-level authorization, persistence, and concurrency, but they
+  should not render HTML, parse requests, know about cookies, or depend directly
+  on Coalton rules.
+- The `src/web*.lisp` files are the adapter boundary. Convert request strings
+  with helpers such as `parse-index` and `parse-player-mark` before calling
+  lower layers.
   It may call game APIs directly for the local-session mode and room APIs for
   shareable multiplayer mode.
 - LASS is build-time asset tooling. Keep stylesheet generation in `scripts/`
-  and `assets/`; `src/web.lisp` should only link and serve the generated CSS.
+  and `assets/`; the web layer should only link and serve the generated CSS.
 - Shared constants should live at the lowest layer that can own them without
   creating an upward dependency.
 

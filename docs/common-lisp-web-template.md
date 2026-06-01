@@ -118,7 +118,7 @@ Template defaults:
 - keep accessibility utility classes, such as `.visually-hidden`, in the base
   stylesheet;
 - validate that `static/style.css` matches `assets/style.lass`;
-- do not let `src/web.lisp` call `lass` or emit ad hoc inline styles.
+- do not let web source files call `lass` or emit ad hoc inline styles.
 
 ## Hypermedia Contract
 
@@ -131,7 +131,7 @@ The template should treat HTML as the public application protocol:
 - htmx requests may receive fragments, but those fragments must remain valid
   server-rendered HTML.
 
-Request parsing belongs in `src/web.lisp`. Domain functions should receive
+Request parsing belongs at the web boundary. Domain functions should receive
 validated Lisp values, not raw query strings, form strings, cookies, Clack envs,
 or htmx headers.
 

@@ -15,41 +15,48 @@
                 #:global-outcome-symbols
                 #:winning-line-index-symbols)
   (:export
+   ;; Constants and constructors.
    #:+board-count+
    #:game
    #:make-game
+   #:clone-game-state
+   ;; Predicates and labels.
    #:player-p
    #:player-label
    #:outcome-label
    #:valid-index-p
+   #:valid-game-state-p
+   #:game-over-p
+   ;; State accessors.
    #:game-board-outcomes
    #:game-active-board
    #:game-cells
    #:game-next-player
    #:game-winner
    #:game-move-count
+   ;; Rejection condition accessors.
    #:move-rejected
    #:move-rejected-game
    #:move-rejected-board
    #:move-rejected-cell
    #:move-rejected-reason
    #:move-rejection-reason
+   ;; Board and move queries.
    #:board-outcome
    #:board-winning-line
    #:global-winning-line
    #:winning-line-positions
    #:mark-at
    #:legal-move-p
-   #:valid-game-state-p
    #:first-legal-move
    #:best-tactical-move
    #:best-strategic-move
    #:available-board-p
+   ;; State transitions.
    #:play-move
    #:play-first-legal-move
    #:play-best-tactical-move
-   #:play-best-strategic-move
-   #:game-over-p))
+   #:play-best-strategic-move))
 
 (defpackage #:ultimate-tic-tac-toe.rooms
   (:use #:cl)
@@ -57,19 +64,24 @@
                 #:+board-count+
                 #:make-game
                 #:player-p
-                #:game-cells
                 #:game-board-outcomes
                 #:game-next-player
                 #:game-active-board
                 #:game-winner
                 #:game-move-count
+                #:clone-game-state
                 #:mark-at
                 #:play-move
                 #:move-rejected-reason)
   (:export
+   ;; Repository constructors and actions.
    #:make-memory-room-repository
    #:make-sqlite-room-repository
    #:create-room
+   #:view-room
+   #:claim-seat
+   #:play-room-move
+   ;; Room views.
    #:room-view
    #:room-view-code
    #:room-view-game
@@ -77,9 +89,7 @@
    #:room-view-role
    #:room-view-mark
    #:room-view-seat-open-p
-   #:view-room
-   #:claim-seat
-   #:play-room-move
+   ;; Rejection condition accessors.
    #:room-rejected
    #:room-rejected-reason))
 

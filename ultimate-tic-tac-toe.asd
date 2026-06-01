@@ -25,8 +25,13 @@
                 :components ((:file "package")
                              (:file "rules")
                              (:file "game")
+                             (:file "game-ai")
                              (:file "rooms")
-                             (:file "web")))))
+                             (:file "rooms-memory")
+                             (:file "rooms-sqlite")
+                             (:file "web")
+                             (:file "web-render")
+                             (:file "web-handlers")))))
 
 (asdf:defsystem "ultimate-tic-tac-toe/assets"
   :description "Asset build tooling for ultimate-tic-tac-toe."
