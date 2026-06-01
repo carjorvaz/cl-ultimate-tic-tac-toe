@@ -1,6 +1,7 @@
 .direnv/
 .cache/
 .hermes/
+.jj/
 result
 result-*
 *.fasl

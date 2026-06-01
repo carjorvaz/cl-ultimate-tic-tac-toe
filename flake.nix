@@ -104,6 +104,9 @@
           default = pkgs.mkShell {
             packages = [
               lisp
+              pkgs.difftastic
+              pkgs.jujutsu
+              pkgs.just
               pkgs.nodejs
               pkgs.playwright
               pkgs.rlwrap
