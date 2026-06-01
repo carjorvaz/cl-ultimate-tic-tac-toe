@@ -1,6 +1,7 @@
 # Rooms, Watch Mode, SSE, and Scaffold Extraction Plan
 
-> **For Hermes:** Use subagent-driven-development skill to implement this plan task-by-task with spec and quality review gates.
+> **Status:** Completed on 2026-06-01. The reusable scaffold now lives in
+> <https://github.com/carjorvaz/cl-web-template>.
 
 **Goal:** Add shareable room multiplayer with read-only watchers, use htmx SSE where it improves observation, and extract the Common Lisp + Nix/direnv + validation harness into a reusable scaffold.
 
@@ -138,8 +139,8 @@ Use htmx SSE as progressive enhancement, not as the core command path.
 - Persistence should align with existing `UTTT_ROOM_DB` deployment configuration and be proven by a SQLite spike before broad wiring.
 - Scaffold extraction waited until the room/persistence boundary was proven;
   future reusable template changes belong in `carjorvaz/cl-web-template`.
-- `docs/exec-plans/active/` is the durable home for this roadmap; local
-  `.hermes/plans/` scratch copies should be migrated here or pruned.
+- Completed roadmap records belong under `docs/exec-plans/completed/`; local
+  `.hermes/plans/` scratch copies should be migrated into repo docs or pruned.
 
 ## Validation Performed
 

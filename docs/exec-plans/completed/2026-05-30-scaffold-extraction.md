@@ -11,7 +11,7 @@
 
 **Architecture:** Keep extraction repository-local first. The template should default to a small Common Lisp hypermedia app with a domain layer and a web adapter, and expose optional extension points for Coalton rules, SQLite persistence, and htmx SSE rather than baking Ultimate Tic Tac Toe assumptions into the starter.
 
-**Source contracts:** `docs/common-lisp-web-template.md` defines the target shape; `docs/HARNESS.md` defines agent-first taste; the broader roadmap is `docs/exec-plans/active/2026-05-22-rooms-watch-sse-scaffold.md` Phase 7.
+**Source contracts:** `docs/common-lisp-web-template.md` defines the target shape; `docs/HARNESS.md` defines agent-first taste; the broader roadmap was `docs/exec-plans/completed/2026-05-22-rooms-watch-sse-scaffold.md` Phase 7.
 
 ## Acceptance Criteria
 
@@ -43,7 +43,7 @@ maintainer decision to split the proven template.
 - Create: `scaffold/README.md`
 - Create: `scaffold/template/README.md`
 - Modify: `scripts/validate-docs.lisp`
-- Modify: `docs/exec-plans/active/2026-05-22-rooms-watch-sse-scaffold.md`
+- Modify: `docs/exec-plans/completed/2026-05-22-rooms-watch-sse-scaffold.md`
 
 **Steps:**
 1. Create scaffold docs that describe status, rules, template parameters, required files, and validation.
