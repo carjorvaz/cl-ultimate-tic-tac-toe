@@ -25,5 +25,11 @@ flake-check:
 jj-status:
     jj status
 
+jj-diff:
+    jj diff
+
+jj-ops:
+    jj op log
+
 review-diff:
     jj diff --tool difft

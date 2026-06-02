@@ -7,16 +7,18 @@ a map, not a manual; the durable source of truth lives in `docs/`.
 
 1. Read `README.md` for run and test commands.
 2. Read `docs/README.md` to choose the right deeper document.
-3. Run `direnv exec . sbcl --script scripts/test.lisp` after code changes.
-4. Run `direnv exec . sbcl --script scripts/build-assets.lisp` after editing
+3. Prefer Jujutsu (`jj`) for local change inspection/editing; keep Git/GitHub
+   for publication, tags, and CI visibility.
+4. Run `direnv exec . sbcl --script scripts/test.lisp` after code changes.
+5. Run `direnv exec . sbcl --script scripts/build-assets.lisp` after editing
    `assets/style.lass`.
-5. Run `direnv exec . sbcl --script scripts/validate-assets.lisp` after
+6. Run `direnv exec . sbcl --script scripts/validate-assets.lisp` after
    changing `assets/style.lass` or `static/style.css`.
-6. Run `direnv exec . sbcl --script scripts/validate-architecture.lisp` after
+7. Run `direnv exec . sbcl --script scripts/validate-architecture.lisp` after
    changing source boundaries, dependency declarations, or system layout.
-7. Run `direnv exec . sbcl --script scripts/validate-docs.lisp` after changing
+8. Run `direnv exec . sbcl --script scripts/validate-docs.lisp` after changing
    repository guidance, docs, scripts, or Lisp file headers.
-8. Run `direnv exec . node scripts/browser-smoke.mjs` after UI changes.
+9. Run `direnv exec . node scripts/browser-smoke.mjs` after UI changes.
 
 ## Source Of Truth
 
