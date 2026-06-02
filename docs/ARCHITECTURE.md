@@ -31,7 +31,7 @@ system quickly and can lift the harness into new projects later.
 - `assets/` contains source assets, including `assets/style.lass`.
 - `static/` contains generated CSS and SVG assets served directly by the web
   layer.
-- `t/` contains FiveAM tests for rules, game behavior, room behavior, and HTTP
+- `test/` contains FiveAM tests for rules, game behavior, room behavior, and HTTP
   rendering.
 - `scripts/` contains runnable entry points for local app, test, validation, and
   browser-smoke workflows.

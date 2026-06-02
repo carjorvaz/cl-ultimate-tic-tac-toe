@@ -36,7 +36,7 @@
 - Add `ultimate-tic-tac-toe.rooms` in `src/package.lisp` and `src/rooms.lisp`.
 - Update `ultimate-tic-tac-toe.asd` component order.
 - Extend `scripts/validate-architecture.lisp` to enforce `rules -> game -> rooms -> web`.
-- Add `t/room-tests.lisp`.
+- Add `test/room-tests.lisp`.
 - Model room codes, seat claims, private seat tokens, watcher views, move authorization, revisions, and serialization boundaries.
 - Start with an in-memory repository so behavior and API shape stabilize before SQLite.
 - Validation: targeted room tests, then `scripts/test.lisp` and architecture validation.
@@ -73,7 +73,7 @@ POST /rooms/:code/reset   # only if product docs allow it
 - Watchers receive board/status/player summaries with no enabled move forms.
 - Unknown room codes return 404 without accidental room creation.
 - CSRF remains required on all room POST routes.
-- Validation: `t/web-tests.lisp` with separate cookies for X, O, and watcher sessions.
+- Validation: `test/web-tests.lisp` with separate cookies for X, O, and watcher sessions.
 
 ## Phase 5: htmx SSE
 
@@ -115,7 +115,7 @@ Use htmx SSE as progressive enhancement, not as the core command path.
 - 2026-05-22: Added `docs/HARNESS.md` as the durable source for agent-first harness, Common Lisp taste, SSE policy, mechanical gates, and garbage-collection rules.
 - 2026-05-22: Created this active execution plan so future agent runs can continue from repository-local context instead of chat history.
 - 2026-05-23: Phase 1 product/architecture/reliability/quality contracts were updated with room, watcher, SSE, persistence, and verification expectations.
-- 2026-05-23: Phase 2 room domain layer landed in `src/rooms.lisp` with private seat tokens, watcher classification, revision checks, room move authorization, immutable views, `t/room-tests.lisp`, ASDF wiring, and architecture validation for `rules -> game -> rooms -> web`.
+- 2026-05-23: Phase 2 room domain layer landed in `src/rooms.lisp` with private seat tokens, watcher classification, revision checks, room move authorization, immutable views, `test/room-tests.lisp`, ASDF wiring, and architecture validation for `rules -> game -> rooms -> web`.
 - 2026-05-28: Initial Phase 4 room web routes landed with `POST /rooms`, role-aware `GET /rooms/:code`, fragment `GET /rooms/:code/game`, seat-claim posts, room move posts, private session-held seat tokens, and HTTP tests for X/O/watcher cookie separation.
 - 2026-05-28: Browser multi-context room smoke landed for independent X-player, O-player, and watcher contexts through the manual refresh fallback.
 - 2026-05-29: Phase 5 SSE observation landed with local `htmx-ext-sse`, `GET /rooms/:code/events` `text/event-stream` snapshots, stable `#room-stream` -> `#room-game` swaps, same-revision `Last-Event-ID` no-op responses to preserve focus during idle reconnects, HTTP event-stream coverage, and browser smoke assertions that X/O/watcher contexts receive room updates without manual reloads.
@@ -153,7 +153,7 @@ Use htmx SSE as progressive enhancement, not as the core command path.
 - Phase 1 revalidation passed: `scripts/test.lisp`, `scripts/validate-architecture.lisp`, `scripts/validate-assets.lisp`, `scripts/validate-docs.lisp`, `scripts/browser-smoke.mjs`, and `nix build .#checks.aarch64-darwin.default --print-build-logs`.
 - `direnv exec . node scripts/browser-smoke.mjs` passed before this plan was created and after Phase 1 documentation updates.
 - Phase 2 checkpoint validation passed after the room files were added to the Git index and an independent review-found mutable room-code snapshot leak was fixed: `git diff --check`, `direnv exec . sbcl --script scripts/test.lisp` (951/951 checks), `direnv exec . sbcl --script scripts/validate-assets.lisp`, `direnv exec . sbcl --script scripts/validate-architecture.lisp`, `direnv exec . sbcl --script scripts/validate-docs.lisp`, `direnv exec . node scripts/browser-smoke.mjs`, and `nix build .#checks.aarch64-darwin.default --print-build-logs`.
-- Phase 4 RED/GREEN room HTTP route cycle: new `t/web-tests.lisp` tests first failed with 404s for missing `/rooms` routes, then passed after the in-memory room web handlers and rendering were added (`direnv exec . sbcl --script scripts/test.lisp`, 981/981 checks).
+- Phase 4 RED/GREEN room HTTP route cycle: new `test/web-tests.lisp` tests first failed with 404s for missing `/rooms` routes, then passed after the in-memory room web handlers and rendering were added (`direnv exec . sbcl --script scripts/test.lisp`, 981/981 checks).
 - Phase 4 browser revalidation passed after the room multi-context browser flow and game-over topbar focus fix landed: `BROWSER_SMOKE_SKIP_SCREENSHOTS=1 direnv exec . node scripts/browser-smoke.mjs`, `UPDATE_SCREENSHOTS=1 direnv exec . node scripts/browser-smoke.mjs`, and `direnv exec . node scripts/browser-smoke.mjs`.
 
 ## Gates

@@ -44,7 +44,7 @@
   :author "Contributors"
   :license "AGPL-3.0-or-later"
   :depends-on ("ultimate-tic-tac-toe" "fiveam" "usocket")
-  :components ((:module "t"
+  :components ((:module "test"
                 :serial t
                 :components ((:file "package")
                              (:file "game-tests")

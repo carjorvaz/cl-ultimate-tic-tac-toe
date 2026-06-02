@@ -84,7 +84,7 @@ A new app should start with this layout:
 │   ├── app.js
 │   ├── htmx.min.js
 │   └── style.css
-└── t/
+└── test/
     ├── package.lisp
     ├── domain-tests.lisp
     └── web-tests.lisp

@@ -57,7 +57,7 @@ maintainer decision to split the proven template.
 **Objective:** Add a neutral starter app under `scaffold/template/` that is small enough to inspect.
 
 **Files:**
-- Create template copies of `.envrc`, `flake.nix`, `app.asd`, `AGENTS.md`, `README.md`, `docs/`, `scripts/`, `src/`, `static/`, `assets/`, and `t/`.
+- Create template copies of `.envrc`, `flake.nix`, `app.asd`, `AGENTS.md`, `README.md`, `docs/`, `scripts/`, `src/`, `static/`, `assets/`, and `test/`.
 - Avoid copying Ultimate Tic Tac Toe game state, rooms, screenshots, or product docs except as neutral placeholders.
 
 **Steps:**

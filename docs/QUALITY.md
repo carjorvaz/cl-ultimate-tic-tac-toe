@@ -23,9 +23,9 @@ through the local htmx SSE path.
 
 ## Verification Matrix
 
-- Pure rules: covered by `t/rules-tests.lisp`.
-- Mutable game state: covered by `t/game-tests.lisp`.
-- Fragment rendering and HTTP flows: covered by `t/web-tests.lisp`.
+- Pure rules: covered by `test/rules-tests.lisp`.
+- Mutable game state: covered by `test/game-tests.lisp`.
+- Fragment rendering and HTTP flows: covered by `test/web-tests.lisp`.
 - Browser rendering, responsive overflow, visible controls, CSRF form presence,
   DOM accessibility structure, browser accessibility-tree names and roles,
   color contrast, keyboard startup flow, computer-opponent play, room
@@ -40,21 +40,21 @@ through the local htmx SSE path.
   architecture validation, and repository harness validation. GitHub Actions
   also runs `nix run .#browser-smoke` with screenshot comparison skipped for
   runner-portable rendering.
-- Room domain behavior: covered by `t/room-tests.lisp` for code creation,
+- Room domain behavior: covered by `test/room-tests.lisp` for code creation,
   private seat-token authority, watcher rejection, turn authorization,
   revision checks, game move rejection propagation, and immutable room views.
-- Room HTTP authorization: covered by `t/web-tests.lisp` with separate cookie
+- Room HTTP authorization: covered by `test/web-tests.lisp` with separate cookie
   jars for X, O, and watcher sessions.
 - Room browser behavior: covered by `scripts/browser-smoke.mjs` with independent
   browser contexts for X player, O player, and watcher, including watcher
   read-only rendering, SSE propagation to inactive views, and refresh fallback
   coverage for room URLs.
-- SSE behavior: covered by `t/web-tests.lisp` for event stream content type,
+- SSE behavior: covered by `test/web-tests.lisp` for event stream content type,
   cache/security headers, `Last-Event-ID` duplicate suppression, and room-update
   fragment shape, plus browser-smoke coverage of X/O/watcher update propagation
   and idle reconnect focus preservation under Playwright.
-- SQLite persistence: covered by `t/room-tests.lisp` for repository reopen and
-  stale duplicate rejection after reopen, and by `t/web-tests.lisp` for the
+- SQLite persistence: covered by `test/room-tests.lisp` for repository reopen and
+  stale duplicate rejection after reopen, and by `test/web-tests.lisp` for the
   `UTTT_ROOM_DB` configured repository/session-store path, including claimed-seat
   session restoration across restart.
 - Manual browser behavior: expected for larger UI changes beyond the smoke flow.
@@ -74,7 +74,7 @@ through the local htmx SSE path.
   posts.
 - `static/style.css` is generated from `assets/style.lass`; update the LASS
   source first, then rebuild and validate assets.
-- Lisp source files in `src/`, `t/`, and `scripts/` start with the AGPL SPDX
+- Lisp source files in `src/`, `test/`, and `scripts/` start with the AGPL SPDX
   header.
 - Documentation should capture decisions that would otherwise live only in a
   prompt, chat, or memory.
