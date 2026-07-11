@@ -19,6 +19,11 @@ Play the deployed app at <https://ultimate-tic-tac-toe.carjorvaz.com/>.
 
 ## Run
 
+After `direnv allow`, or from inside `nix develop`, run `just --list` to
+discover the repository command menu. Its recipes run tools from the active
+development environment; invoking a host `just` without either environment is
+unsupported.
+
 ```sh
 direnv allow
 sbcl --script scripts/run.lisp
@@ -138,6 +143,29 @@ Validate the repository harness with:
 ```sh
 direnv exec . sbcl --script scripts/validate-docs.lisp
 ```
+
+## Jujutsu Workflow
+
+A normal `git clone` does not include the ignored `.jj/` metadata. After
+cloning this repository, initialize the colocated Jujutsu repository once:
+
+```sh
+direnv allow
+jj git init --colocate
+```
+
+After recording a change, publish it with this sequence:
+
+```sh
+jj commit -m "Describe the change"
+jj bookmark move master --to @-
+git push origin master
+```
+
+`jj commit` leaves a new, empty working copy at `@`; the commit just recorded is
+therefore `@-`. Git remains detached in a colocated repository, so the
+`master` bookmark must be moved to `@-` before pushing. Pushing an unmoved
+`master` cannot publish the Jujutsu commit.
 
 ## Notes
 

@@ -133,10 +133,28 @@
                        "technical-debt.md"
                        "exec-plans/README.md")))
 
+(defun validate-jj-workflow-guidance ()
+  (validate-file-markers
+   "README.md"
+   '("## Jujutsu Workflow"
+     "jj git init --colocate"
+     "jj bookmark move master --to @-"
+     "git push origin master")
+   "~A must contain the canonical Jujutsu workflow marker ~S.")
+  (validate-file-markers
+   "AGENTS.md"
+   '("[README Jujutsu workflow](README.md#jujutsu-workflow)")
+   "~A must point to the canonical Jujutsu workflow marker ~S.")
+  (validate-file-markers
+   "docs/HARNESS.md"
+   '("[README Jujutsu workflow](../README.md#jujutsu-workflow)")
+   "~A must point to the canonical Jujutsu workflow marker ~S."))
+
 (defun main ()
   (validate-agent-map)
   (validate-required-docs)
   (validate-docs-readme-map)
+  (validate-jj-workflow-guidance)
   (validate-lisp-spdx-headers)
   (if *errors*
       (progn

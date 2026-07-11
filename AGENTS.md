@@ -7,8 +7,10 @@ a map, not a manual; the durable source of truth lives in `docs/`.
 
 1. Read `README.md` for run and test commands.
 2. Read `docs/README.md` to choose the right deeper document.
-3. Prefer Jujutsu (`jj`) for local change inspection/editing; keep Git/GitHub
-   for publication, tags, and CI visibility.
+3. Prefer Jujutsu (`jj`) for local change inspection/editing. Follow the
+   [README Jujutsu workflow](README.md#jujutsu-workflow) for one-time
+   fresh-clone initialization and publication; keep Git/GitHub as the
+   publication, tag, PR, and CI surface.
 4. Run `direnv exec . sbcl --script scripts/test.lisp` after code changes.
 5. Run `direnv exec . sbcl --script scripts/build-assets.lisp` after editing
    `assets/style.lass`.

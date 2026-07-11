@@ -1,6 +1,6 @@
 # Harness And Engineering Taste
 
-Last reviewed: 2026-05-23
+Last reviewed: 2026-07-10
 
 This repository is both a game and a proving ground for a reusable Common Lisp
 web-app harness. The goal is not only that the app works; the goal is that a
@@ -23,11 +23,15 @@ fresh context window.
   scripts listed in `AGENTS.md` for feedback.
 - Keep the repo-local command menu current: `just --list` should expose the
   common validation, browser-smoke, and JJ review commands.
-- Use Jujutsu as the local history-editing layer on top of Git. Prefer
-  `jj status`, `jj diff --tool difft`, `jj split`, `jj squash -i`, `jj absorb`,
-  `jj op log`, and `jj undo` while iterating; keep Git/GitHub for push, release
-  tags, and remote compatibility. `.jj/` is local state and must stay
-  uncommitted.
+- Use Jujutsu as the local history-editing layer on top of Git. A fresh Git
+  clone must be initialized as a colocated JJ repository, and publication
+  requires moving the Git-visible `master` bookmark to the JJ commit first; a
+  detached JJ working-copy commit is not directly pushable. Follow the
+  [README Jujutsu workflow](../README.md#jujutsu-workflow) for the executable
+  initialization and publication sequence. Prefer `jj status`,
+  `jj diff --tool difft`, `jj split`, `jj squash -i`, `jj absorb`, `jj op log`,
+  and `jj undo` while iterating; keep Git/GitHub as the push, release-tag, PR,
+  and CI surface. `.jj/` is local state and must stay uncommitted.
 - Prefer short-lived, reviewable changes. Complex work needs a checked-in plan
   under `docs/exec-plans/active/` with decisions and validation notes.
 - Keep failure output actionable. Custom validators should explain both what
